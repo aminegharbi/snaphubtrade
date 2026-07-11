@@ -1,0 +1,861 @@
+-- ============================================================
+-- DubaiAuto — Brands & Models Dataset
+-- Simple INSERT statements — no complex patterns
+-- ============================================================
+
+-- ─── Tables ───────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS brands (
+  id            SERIAL PRIMARY KEY,
+  name          VARCHAR(100) NOT NULL UNIQUE,
+  slug          VARCHAR(100) NOT NULL UNIQUE,
+  country       VARCHAR(50)  NOT NULL,
+  region        VARCHAR(30)  NOT NULL,
+  founded_year  SMALLINT,
+  parent_group  VARCHAR(100),
+  active        BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS models (
+  id              SERIAL PRIMARY KEY,
+  brand_id        INT REFERENCES brands(id) ON DELETE CASCADE,
+  name            VARCHAR(150) NOT NULL,
+  slug            VARCHAR(150) NOT NULL,
+  body_type       VARCHAR(50),
+  segment         VARCHAR(30),
+  powertrain      VARCHAR(10),
+  fuel_type       VARCHAR(30),
+  engine_options  TEXT[],
+  battery_kwh     DECIMAL(6,1),
+  range_km        INT,
+  year_from       SMALLINT,
+  price_aed_min   INT,
+  price_aed_max   INT,
+  export_popular  BOOLEAN DEFAULT FALSE,
+  notes           TEXT,
+  active          BOOLEAN DEFAULT TRUE,
+  UNIQUE(brand_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS powertrain_technologies (
+  code          VARCHAR(10) PRIMARY KEY,
+  name          VARCHAR(100) NOT NULL,
+  full_name     VARCHAR(200),
+  description   TEXT,
+  electric_range_type VARCHAR(50),
+  co2_category  VARCHAR(20)
+);
+
+CREATE TABLE IF NOT EXISTS market_stats (
+  id        SERIAL PRIMARY KEY,
+  stat_name VARCHAR(200) NOT NULL,
+  value     TEXT NOT NULL,
+  unit      VARCHAR(50),
+  year      SMALLINT,
+  source    VARCHAR(200),
+  context   TEXT
+);
+
+-- ─── Powertrain technologies ──────────────────────────────────────────────────
+
+INSERT INTO powertrain_technologies (code, name, full_name, description, electric_range_type, co2_category) VALUES
+('ICE',  'Petrol / Diesel',   'Internal Combustion Engine',        'Traditional combustion engine. No electric motor. Wide service network worldwide.', 'none', 'high'),
+('MHEV', 'Mild Hybrid',       'Mild Hybrid Electric Vehicle',      '48V belt-starter-generator assists the engine. Cannot drive on electricity alone. Improves efficiency 10-15%.', 'none', 'medium'),
+('HEV',  'Full Hybrid',       'Full Hybrid Electric Vehicle',      'Self-charging hybrid. Electric motor + battery charged by regenerative braking. Toyota THS, Honda e:HEV. No plug needed.', 'limited', 'medium'),
+('PHEV', 'Plug-in Hybrid',    'Plug-in Hybrid Electric Vehicle',   'Large battery (8-25 kWh) charged externally. EV range 40-120 km. Engine for long distance. Best of both worlds.', 'limited', 'low'),
+('REEV', 'Range Extender EV', 'Range-Extender Electric Vehicle',   'Electric car with small combustion generator — engine never drives wheels directly. Li Auto, Aito, Voyah. Total range 1000-1500 km.', 'extended', 'low'),
+('BEV',  'Full Electric',     'Battery Electric Vehicle',          'Pure electric. No combustion engine. Zero tailpipe emissions. WLTP range 300-700 km. Fast-charge via CCS or GB/T.', 'full', 'zero'),
+('FCEV', 'Hydrogen Fuel Cell','Fuel Cell Electric Vehicle',        'Hydrogen fuel cells generate electricity. Only emits water. Refuel in 5 minutes. Toyota Mirai, Hyundai Nexo.', 'full', 'zero')
+ON CONFLICT (code) DO NOTHING;
+
+-- ─── Market stats ─────────────────────────────────────────────────────────────
+
+INSERT INTO market_stats (stat_name, value, unit, year, source, context) VALUES
+('Total vehicles exported from Dubai Free Zone', '350000', 'vehicles/year', 2023, 'Dubai Chamber', 'UAE is the #1 used car exporter globally'),
+('Top export destination from Dubai', 'Africa (East + West)', NULL, 2023, 'Dubai Exports', 'Nigeria, Ghana, Tanzania, Senegal leading'),
+('Most exported make from Dubai', 'Toyota', NULL, 2023, 'RTA Dubai', 'Land Cruiser, Hilux, Prado dominate'),
+('Chinese brand export growth Dubai', '+180', '% YoY', 2023, 'DubaiAuto est.', 'BYD, MG, Chery growing rapidly'),
+('BEV market share UAE new sales', '4.2', '%', 2023, 'BloombergNEF', 'Growing from 1.5% in 2021'),
+('PHEV/HEV market share UAE new sales', '12.5', '%', 2023, 'BloombergNEF', 'Toyota HEV leads category'),
+('UAE EV charging points DEWA', '1200', 'stations', 2024, 'DEWA Green Charger', '3000 target by 2025'),
+('Dubai vehicle re-export value', '28', 'billion AED', 2023, 'Dubai Statistics Center', NULL),
+('Most searched model on DubaiAuto', 'Land Cruiser 300', NULL, 2024, 'DubaiAuto Platform', 'V6 Twin-Turbo version'),
+('WhatsApp contact rate', '73', '% of leads', 2024, 'DubaiAuto Platform', 'vs 18% phone, 9% email')
+ON CONFLICT DO NOTHING;
+
+-- ─── EUROPEAN BRANDS ─────────────────────────────────────────────────────────
+
+INSERT INTO brands (name, slug, country, region, founded_year, parent_group) VALUES
+('Mercedes-Benz', 'mercedes-benz', 'Germany', 'european', 1926, 'Mercedes-Benz Group'),
+('BMW',           'bmw',           'Germany', 'european', 1916, 'BMW Group'),
+('Audi',          'audi',          'Germany', 'european', 1909, 'Volkswagen Group'),
+('Volkswagen',    'volkswagen',    'Germany', 'european', 1937, 'Volkswagen Group'),
+('Porsche',       'porsche',       'Germany', 'european', 1931, 'Volkswagen Group'),
+('Peugeot',       'peugeot',       'France',  'european', 1882, 'Stellantis'),
+('Renault',       'renault',       'France',  'european', 1899, 'Renault Group'),
+('Citroën',       'citroen',       'France',  'european', 1919, 'Stellantis'),
+('Alpine',        'alpine',        'France',  'european', 1955, 'Renault Group'),
+('Ferrari',       'ferrari',       'Italy',   'european', 1939, 'Ferrari N.V.'),
+('Lamborghini',   'lamborghini',   'Italy',   'european', 1963, 'Volkswagen Group'),
+('Maserati',      'maserati',      'Italy',   'european', 1914, 'Stellantis'),
+('Alfa Romeo',    'alfa-romeo',    'Italy',   'european', 1910, 'Stellantis'),
+('Rolls-Royce',   'rolls-royce',   'United Kingdom', 'european', 1906, 'BMW Group'),
+('Bentley',       'bentley',       'United Kingdom', 'european', 1919, 'Volkswagen Group'),
+('Jaguar',        'jaguar',        'United Kingdom', 'european', 1935, 'JLR'),
+('Land Rover',    'land-rover',    'United Kingdom', 'european', 1948, 'JLR'),
+('McLaren',       'mclaren',       'United Kingdom', 'european', 1963, 'McLaren Group'),
+('MINI',          'mini',          'United Kingdom', 'european', 1959, 'BMW Group'),
+('Aston Martin',  'aston-martin',  'United Kingdom', 'european', 1913, 'Aston Martin Lagonda'),
+('Volvo',         'volvo',         'Sweden',  'european', 1927, 'Geely Holding'),
+('Polestar',      'polestar',      'Sweden',  'european', 1996, 'Geely Holding'),
+('Skoda',         'skoda',         'Czech Republic', 'european', 1895, 'Volkswagen Group'),
+('CUPRA',         'cupra',         'Spain',   'european', 2018, 'Volkswagen Group')
+ON CONFLICT (slug) DO NOTHING;
+
+-- ─── US BRANDS ───────────────────────────────────────────────────────────────
+
+INSERT INTO brands (name, slug, country, region, founded_year, parent_group) VALUES
+('Ford',       'ford',       'USA', 'us', 1903, 'Ford Motor Company'),
+('Chevrolet',  'chevrolet',  'USA', 'us', 1911, 'General Motors'),
+('GMC',        'gmc',        'USA', 'us', 1911, 'General Motors'),
+('Cadillac',   'cadillac',   'USA', 'us', 1902, 'General Motors'),
+('Dodge',      'dodge',      'USA', 'us', 1900, 'Stellantis'),
+('Ram',        'ram',        'USA', 'us', 2010, 'Stellantis'),
+('Jeep',       'jeep',       'USA', 'us', 1941, 'Stellantis'),
+('Lincoln',    'lincoln',    'USA', 'us', 1917, 'Ford Motor Company'),
+('Tesla',      'tesla',      'USA', 'us', 2003, 'Tesla Inc.'),
+('Rivian',     'rivian',     'USA', 'us', 2009, 'Rivian Automotive'),
+('Lucid',      'lucid',      'USA', 'us', 2007, 'Lucid Group')
+ON CONFLICT (slug) DO NOTHING;
+
+-- ─── JAPANESE BRANDS ─────────────────────────────────────────────────────────
+
+INSERT INTO brands (name, slug, country, region, founded_year, parent_group) VALUES
+('Toyota',    'toyota',    'Japan', 'japanese', 1937, 'Toyota Motor Corporation'),
+('Lexus',     'lexus',     'Japan', 'japanese', 1989, 'Toyota Motor Corporation'),
+('Honda',     'honda',     'Japan', 'japanese', 1948, 'Honda Motor Co.'),
+('Nissan',    'nissan',    'Japan', 'japanese', 1934, 'Renault-Nissan-Mitsubishi'),
+('Mazda',     'mazda',     'Japan', 'japanese', 1920, 'Mazda Motor Corporation'),
+('Mitsubishi','mitsubishi','Japan', 'japanese', 1917, 'Renault-Nissan-Mitsubishi'),
+('Subaru',    'subaru',    'Japan', 'japanese', 1953, 'Subaru Corporation')
+ON CONFLICT (slug) DO NOTHING;
+
+-- ─── KOREAN BRANDS ───────────────────────────────────────────────────────────
+
+INSERT INTO brands (name, slug, country, region, founded_year, parent_group) VALUES
+('Hyundai', 'hyundai', 'South Korea', 'korean', 1967, 'Hyundai Motor Group'),
+('Kia',     'kia',     'South Korea', 'korean', 1944, 'Hyundai Motor Group'),
+('Genesis', 'genesis', 'South Korea', 'korean', 2015, 'Hyundai Motor Group')
+ON CONFLICT (slug) DO NOTHING;
+
+-- ─── CHINESE BRANDS ──────────────────────────────────────────────────────────
+
+INSERT INTO brands (name, slug, country, region, founded_year, parent_group) VALUES
+('BYD',        'byd',       'China', 'chinese', 1995, 'BYD Company'),
+('Denza',      'denza',     'China', 'chinese', 2010, 'BYD / Mercedes-Benz JV'),
+('Yangwang',   'yangwang',  'China', 'chinese', 2022, 'BYD Company'),
+('Geely',      'geely',     'China', 'chinese', 1986, 'Geely Holding Group'),
+('Zeekr',      'zeekr',     'China', 'chinese', 2021, 'Geely Holding Group'),
+('Lynk & Co',  'lynk-co',   'China', 'chinese', 2016, 'Geely Holding Group'),
+('MG',         'mg',        'China', 'chinese', 1924, 'SAIC Motor'),
+('IM Motors',  'im-motors', 'China', 'chinese', 2020, 'SAIC / Alibaba'),
+('Haval',      'haval',     'China', 'chinese', 2013, 'Great Wall Motors'),
+('Tank',       'tank',      'China', 'chinese', 2021, 'Great Wall Motors'),
+('Ora',        'ora',       'China', 'chinese', 2018, 'Great Wall Motors'),
+('Wey',        'wey',       'China', 'chinese', 2016, 'Great Wall Motors'),
+('Chery',      'chery',     'China', 'chinese', 1997, 'Chery Automobile'),
+('Omoda',      'omoda',     'China', 'chinese', 2022, 'Chery Automobile'),
+('Jaecoo',     'jaecoo',    'China', 'chinese', 2023, 'Chery Automobile'),
+('NIO',        'nio',       'China', 'chinese', 2014, 'NIO Inc.'),
+('Onvo',       'onvo',      'China', 'chinese', 2024, 'NIO Inc.'),
+('Li Auto',    'li-auto',   'China', 'chinese', 2015, 'Li Auto Inc.'),
+('Xpeng',      'xpeng',     'China', 'chinese', 2014, 'Xpeng Inc.'),
+('Aito',       'aito',      'China', 'chinese', 2021, 'Seres / Huawei'),
+('Avatr',      'avatr',     'China', 'chinese', 2018, 'CATL / Changan / Huawei'),
+('GAC Aion',   'gac-aion',  'China', 'chinese', 2017, 'GAC Group'),
+('Trumpchi',   'trumpchi',  'China', 'chinese', 2010, 'GAC Group'),
+('Changan',    'changan',   'China', 'chinese', 1862, 'Changan Automobile'),
+('Deepal',     'deepal',    'China', 'chinese', 2022, 'Changan Automobile'),
+('Hongqi',     'hongqi',    'China', 'chinese', 1958, 'FAW Group'),
+('Voyah',      'voyah',     'China', 'chinese', 2020, 'Dongfeng Motor'),
+('Leapmotor',  'leapmotor', 'China', 'chinese', 2015, 'Stellantis / Leapmotor'),
+('Neta',       'neta',      'China', 'chinese', 2018, 'Hozon Auto'),
+('Wuling',     'wuling',    'China', 'chinese', 2002, 'SAIC-GM-Wuling'),
+('Luxeed',     'luxeed',    'China', 'chinese', 2023, 'Chery / Huawei')
+ON CONFLICT (slug) DO NOTHING;
+
+
+-- ─── MODELS — Helper function to get brand id ─────────────────────────────────
+-- We use a simple INSERT with a subquery: INSERT INTO models (...) SELECT brand_id, ... FROM brands WHERE slug = '...'
+
+-- ─── MERCEDES-BENZ ───────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'mercedes-benz';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'A-Class','a-class','Hatchback','B','ICE','petrol',ARRAY['1.5T 136hp','2.0T 224hp'],2018,75000,145000,false),
+(bid,'C-Class','c-class','Sedan','D','ICE','petrol',ARRAY['1.5T MHEV 170hp','2.0T MHEV 258hp','3.0T AMG 476hp'],2021,130000,290000,true),
+(bid,'C 300 e','c-300e','Sedan','D','PHEV','hybrid',ARRAY['2.0T + 129hp EM'],2022,155000,185000,true),
+(bid,'E-Class','e-class','Sedan','E','ICE','petrol',ARRAY['2.0T MHEV 258hp','3.0T MHEV 367hp','4.0T V8 AMG 612hp'],2024,190000,420000,true),
+(bid,'E 300 e','e-300e','Sedan','E','PHEV','hybrid',ARRAY['2.0T + EM'],2024,210000,265000,true),
+(bid,'S-Class','s-class','Sedan','F','ICE','petrol',ARRAY['3.0L I6 MHEV 367hp','4.0L V8 MHEV 503hp','6.0L V12 612hp'],2021,370000,980000,true),
+(bid,'GLA','gla','SUV','SUV-B','ICE','petrol',ARRAY['1.3T 136hp','2.0T 224hp','2.0T AMG 306hp'],2020,115000,215000,true),
+(bid,'GLC','glc','SUV','SUV-D','ICE','petrol',ARRAY['2.0T MHEV 204hp','2.0T MHEV 258hp','3.0T AMG 476hp'],2023,180000,380000,true),
+(bid,'GLC 300 e','glc-300e','SUV','SUV-D','PHEV','hybrid',ARRAY['2.0T + EM 313hp'],2023,200000,245000,true),
+(bid,'GLE','gle','SUV','SUV-E','ICE','petrol',ARRAY['2.0T MHEV 258hp','3.0T I6 MHEV 367hp','4.0T V8 AMG 612hp'],2019,260000,680000,true),
+(bid,'GLS','gls','SUV','SUV-F','ICE','petrol',ARRAY['3.0L I6 MHEV 367hp','4.0L V8 MHEV 503hp','4.0L V8 AMG 612hp'],2020,380000,850000,true),
+(bid,'G-Class','g-class','SUV','SUV-F','ICE','petrol',ARRAY['4.0L V8 585hp G63 AMG','3.0L I6 MHEV 449hp G500'],2018,450000,980000,true),
+(bid,'EQA','eqa','SUV','SUV-B','BEV','electric',ARRAY['EM 188hp','EM 292hp dual'],2021,140000,195000,true),
+(bid,'EQS','eqs','Sedan','F','BEV','electric',ARRAY['EM 333hp','EM 523hp dual','EM 761hp AMG dual'],2021,430000,750000,true),
+(bid,'EQS SUV','eqs-suv','SUV','SUV-F','BEV','electric',ARRAY['EM 355hp','EM 544hp dual'],2022,480000,780000,true),
+(bid,'Maybach S-Class','maybach-s-class','Sedan','F','ICE','petrol',ARRAY['4.0L V8 MHEV 503hp','6.0L V12 621hp S680'],2021,700000,1500000,true),
+(bid,'Maybach GLS','maybach-gls','SUV','SUV-F','ICE','petrol',ARRAY['4.0L V8 MHEV 558hp'],2021,800000,1200000,true),
+(bid,'AMG GT','amg-gt','Coupe','F','ICE','petrol',ARRAY['4.0T V8 476hp GT55','4.0T V8 585hp GT63'],2024,550000,1100000,false),
+(bid,'V-Class','v-class','Van','LCV','ICE','diesel',ARRAY['2.0T D 163hp','2.0T D 239hp'],2019,185000,320000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── BMW ─────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'bmw';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'3 Series','3-series','Sedan','D','ICE','petrol',ARRAY['2.0T 184hp','2.0T 258hp','3.0T M340i 374hp','3.0T M3 510hp'],NULL,NULL,2019,145000,430000,true),
+(bid,'330e','330e','Sedan','D','PHEV','hybrid',ARRAY['2.0T + EM 252hp'],17.9,60,2019,165000,200000,true),
+(bid,'5 Series','5-series','Sedan','E','ICE','petrol',ARRAY['2.0T 208hp','3.0T 294hp','3.0T M550i 523hp','4.4T V8 M5 727hp'],NULL,NULL,2024,195000,680000,true),
+(bid,'530e','530e','Sedan','E','PHEV','hybrid',ARRAY['2.0T + EM 299hp'],21.6,89,2024,220000,280000,true),
+(bid,'7 Series','7-series','Sedan','F','ICE','petrol',ARRAY['3.0T I6 340hp 740i','4.4T V8 544hp 760i'],NULL,NULL,2023,320000,680000,true),
+(bid,'i4','i4','Sedan','D','BEV','electric',ARRAY['EM 286hp eDrive40','EM 544hp M50 dual'],83.9,590,2021,190000,330000,true),
+(bid,'i5','i5','Sedan','E','BEV','electric',ARRAY['EM 340hp eDrive40','EM 601hp M60 dual'],84.4,582,2024,230000,420000,true),
+(bid,'i7','i7','Sedan','F','BEV','electric',ARRAY['EM 544hp xDrive70','EM 659hp M70 dual'],101.7,625,2023,410000,720000,true),
+(bid,'X1','x1','SUV','SUV-B','ICE','petrol',ARRAY['1.5T 136hp','2.0T 211hp','2.0T 223hp xDrive'],NULL,NULL,2022,115000,185000,true),
+(bid,'iX1','ix1','SUV','SUV-B','BEV','electric',ARRAY['EM 313hp xDrive30'],64.7,438,2022,145000,195000,true),
+(bid,'X3','x3','SUV','SUV-D','ICE','petrol',ARRAY['2.0T 184hp','2.0T 190hp','3.0T M40i 360hp','3.0T M Competition 510hp'],NULL,NULL,2022,175000,430000,true),
+(bid,'X3 30e','x3-30e','SUV','SUV-D','PHEV','hybrid',ARRAY['2.0T + EM 292hp'],17.9,46,2022,195000,250000,true),
+(bid,'X5','x5','SUV','SUV-E','ICE','petrol',ARRAY['3.0T I6 xDrive40i 340hp','4.4T V8 M50i 523hp','4.4T V8 X5 M 625hp'],NULL,NULL,2019,260000,620000,true),
+(bid,'X5 45e','x5-45e','SUV','SUV-E','PHEV','hybrid',ARRAY['3.0T I6 + EM 394hp'],24.5,87,2019,290000,370000,true),
+(bid,'X7','x7','SUV','SUV-F','ICE','petrol',ARRAY['3.0T I6 340hp','4.4T V8 530hp M60i','4.4T V8 M Competition 630hp'],NULL,NULL,2019,370000,750000,true),
+(bid,'iX','ix','SUV','SUV-E','BEV','electric',ARRAY['EM 326hp xDrive40','EM 523hp xDrive50','EM 619hp M60'],111.5,630,2021,290000,620000,true),
+(bid,'XM','xm','SUV','SUV-E','PHEV','hybrid',ARRAY['4.4T V8 + EM 653hp','4.4T V8 + EM Red Label 748hp'],29.5,82,2023,680000,900000,false)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── AUDI ────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'audi';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'A4','a4','Sedan','D','ICE','petrol',ARRAY['2.0T 150hp','2.0T 204hp','3.0T V6 MHEV 340hp'],NULL,NULL,2020,135000,380000,true),
+(bid,'A6','a6','Sedan','E','ICE','petrol',ARRAY['2.0T MHEV 204hp','3.0T V6 MHEV 340hp','4.0T V8 RS6 600hp'],NULL,NULL,2019,180000,600000,true),
+(bid,'A8','a8','Sedan','F','ICE','petrol',ARRAY['3.0T V6 MHEV 340hp','4.0T V8 MHEV 460hp','6.0L W12 585hp'],NULL,NULL,2018,310000,700000,true),
+(bid,'Q5','q5','SUV','SUV-D','ICE','petrol',ARRAY['2.0T 204hp','3.0T V6 340hp'],NULL,NULL,2021,175000,420000,true),
+(bid,'Q5 TFSI e','q5-tfsi-e','SUV','SUV-D','PHEV','hybrid',ARRAY['2.0T + EM 299hp'],17.9,43,2021,200000,270000,true),
+(bid,'Q7','q7','SUV','SUV-E','ICE','petrol',ARRAY['3.0T V6 MHEV 340hp','4.0T V8 SQ7 507hp'],NULL,NULL,2020,255000,480000,true),
+(bid,'Q8','q8','SUV','SUV-E','ICE','petrol',ARRAY['3.0T V6 MHEV 340hp','4.0T V8 SQ8 507hp','4.0T RS Q8 600hp'],NULL,NULL,2018,270000,650000,true),
+(bid,'Q4 e-tron','q4-etron','SUV','SUV-C','BEV','electric',ARRAY['EM 170hp','EM 204hp','EM 299hp dual'],82.0,522,2021,145000,235000,true),
+(bid,'Q6 e-tron','q6-etron','SUV','SUV-D','BEV','electric',ARRAY['EM 306hp','EM 489hp SQ6 dual'],100.0,625,2024,195000,360000,true),
+(bid,'Q8 e-tron','q8-etron','SUV','SUV-E','BEV','electric',ARRAY['EM 340hp','EM 408hp SQ8 dual'],114.0,582,2023,295000,480000,true),
+(bid,'e-tron GT','etron-gt','Sedan','F','BEV','electric',ARRAY['EM 476hp','EM 598hp RS'],93.4,501,2021,350000,550000,true),
+(bid,'R8','r8','Coupe','F','ICE','petrol',ARRAY['5.2L V10 570hp','5.2L V10 Performance 620hp'],NULL,NULL,2022,580000,850000,false)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── PORSCHE ─────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'porsche';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'911','911','Coupe','F','ICE','petrol',ARRAY['3.0T 385hp Carrera','3.0T 450hp S','3.8L 650hp Turbo S','4.0L GT3 510hp'],NULL,NULL,2019,490000,1500000,true),
+(bid,'Cayenne','cayenne','SUV','SUV-E','ICE','petrol',ARRAY['3.0T V6 353hp','4.0T V8 GTS 460hp','4.0T V8 Turbo GT 659hp'],NULL,NULL,2023,290000,780000,true),
+(bid,'Cayenne E-Hybrid','cayenne-ehybrid','SUV','SUV-E','PHEV','hybrid',ARRAY['3.0T V6 + EM 470hp','4.0T V8 + EM 739hp Turbo S E-Hybrid'],25.9,90,2023,350000,850000,true),
+(bid,'Macan','macan','SUV','SUV-C','ICE','petrol',ARRAY['2.0T 265hp','2.9T GTS 380hp','4.0T Turbo 440hp'],NULL,NULL,2019,195000,440000,true),
+(bid,'Macan EV','macan-ev','SUV','SUV-C','BEV','electric',ARRAY['EM 408hp','EM 639hp Turbo dual'],100.0,613,2024,250000,430000,true),
+(bid,'Taycan','taycan','Sedan','F','BEV','electric',ARRAY['EM 408hp','EM 571hp 4S dual','EM 760hp Turbo S dual'],93.4,630,2020,380000,780000,true),
+(bid,'Panamera','panamera','Sedan','F','ICE','petrol',ARRAY['2.9T V6 330hp','4.0T V8 440hp GTS','4.0T V8 620hp Turbo S'],NULL,NULL,2021,350000,1000000,true),
+(bid,'Panamera 4S E-Hybrid','panamera-ehybrid','Sedan','F','PHEV','hybrid',ARRAY['2.9T V6 + EM 560hp'],17.9,54,2021,430000,580000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── LAND ROVER ──────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'land-rover';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Defender 90','defender-90','SUV','SUV-D','ICE','petrol',ARRAY['2.0T P300','3.0T P400 MHEV','5.0L V8 525hp'],NULL,NULL,2020,185000,580000,true),
+(bid,'Defender 110','defender-110','SUV','SUV-E','ICE','petrol',ARRAY['2.0T P300','3.0T P400 MHEV','5.0L V8 525hp'],NULL,NULL,2020,200000,600000,true),
+(bid,'Discovery','discovery','SUV','SUV-F','ICE','petrol',ARRAY['3.0T D300 Diesel','3.0T P360 MHEV'],NULL,NULL,2021,210000,390000,true),
+(bid,'Range Rover','range-rover','SUV','SUV-F','ICE','petrol',ARRAY['3.0T P360 MHEV','3.0T P400 MHEV','4.4T P530 V8'],NULL,NULL,2022,350000,1100000,true),
+(bid,'Range Rover PHEV','range-rover-phev','SUV','SUV-F','PHEV','hybrid',ARRAY['3.0T + EM P460e','3.0T + EM P510e'],38.2,113,2022,420000,750000,true),
+(bid,'Range Rover Sport','range-rover-sport','SUV','SUV-E','ICE','petrol',ARRAY['3.0T P360 MHEV','3.0T P400 MHEV','4.4T P530 V8'],NULL,NULL,2023,280000,780000,true),
+(bid,'Range Rover Evoque','range-rover-evoque','SUV','SUV-C','ICE','petrol',ARRAY['2.0T P200','2.0T P250','2.0T P300'],NULL,NULL,2019,155000,280000,true),
+(bid,'Range Rover Velar','range-rover-velar','SUV','SUV-D','ICE','petrol',ARRAY['2.0T P250','3.0T P400 MHEV'],NULL,NULL,2023,185000,390000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── VOLVO ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'volvo';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'XC40','xc40','SUV','SUV-C','ICE','petrol',ARRAY['1.5T 163hp','2.0T T5 247hp'],NULL,NULL,2018,120000,210000,true),
+(bid,'XC40 Recharge','xc40-recharge','SUV','SUV-C','BEV','electric',ARRAY['EM 231hp','EM 408hp dual'],82.0,574,2020,150000,230000,true),
+(bid,'XC60','xc60','SUV','SUV-D','ICE','petrol',ARRAY['2.0T B4 197hp','2.0T B5 250hp'],NULL,NULL,2018,175000,330000,true),
+(bid,'XC60 Recharge','xc60-recharge','SUV','SUV-D','PHEV','hybrid',ARRAY['2.0T + EM T6 340hp','2.0T + EM T8 455hp'],18.8,69,2020,210000,320000,true),
+(bid,'XC90','xc90','SUV','SUV-F','ICE','petrol',ARRAY['2.0T B5 250hp','2.0T B6 300hp'],NULL,NULL,2020,240000,450000,true),
+(bid,'XC90 Recharge','xc90-recharge','SUV','SUV-F','PHEV','hybrid',ARRAY['2.0T + EM T8 455hp'],18.8,51,2020,300000,430000,true),
+(bid,'EX30','ex30','SUV','SUV-B','BEV','electric',ARRAY['EM 272hp','EM 428hp dual'],69.0,476,2023,115000,175000,true),
+(bid,'EX90','ex90','SUV','SUV-F','BEV','electric',ARRAY['EM 408hp','EM 517hp dual'],111.0,600,2024,320000,480000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── FERRARI ─────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'ferrari';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'296 GTB','296-gtb','Coupe','F','PHEV','hybrid',ARRAY['3.0L V6 + EM 830hp'],7.45,25,2022,980000,1300000,false),
+(bid,'Roma','roma','Coupe','F','ICE','petrol',ARRAY['3.9L V8 612hp'],NULL,NULL,2020,720000,950000,false),
+(bid,'SF90 Stradale','sf90-stradale','Coupe','F','PHEV','hybrid',ARRAY['4.0L V8 + 3x EM 1000hp'],7.9,25,2020,1900000,2800000,false),
+(bid,'Purosangue','purosangue','SUV','SUV-F','ICE','petrol',ARRAY['6.5L V12 NA 725hp'],NULL,NULL,2023,1650000,2200000,false),
+(bid,'812 Superfast','812-superfast','Coupe','F','ICE','petrol',ARRAY['6.5L V12 800hp NA'],NULL,NULL,2017,1050000,1400000,false)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── LAMBORGHINI ─────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'lamborghini';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Huracán EVO','huracan-evo','Coupe','F','ICE','petrol',ARRAY['5.2L V10 640hp NA'],NULL,NULL,2019,750000,1100000,true),
+(bid,'Urus','urus','SUV','SUV-F','ICE','petrol',ARRAY['4.0L V8 650hp','4.0L V8 Performante 666hp'],NULL,NULL,2019,680000,1050000,true),
+(bid,'Urus SE','urus-se','SUV','SUV-F','PHEV','hybrid',ARRAY['4.0L V8 + EM 800hp'],25.9,60,2024,850000,1150000,false),
+(bid,'Revuelto','revuelto','Coupe','F','PHEV','hybrid',ARRAY['6.5L V12 + 3x EM 1001hp'],3.8,11,2023,2400000,3500000,false)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── ROLLS-ROYCE ─────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'rolls-royce';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Ghost','ghost','Sedan','F','ICE','petrol',ARRAY['6.75L V12 571hp','6.75L V12 Black Badge 600hp'],NULL,NULL,2021,900000,1300000,true),
+(bid,'Phantom','phantom','Sedan','F','ICE','petrol',ARRAY['6.75L V12 571hp'],NULL,NULL,2018,1400000,2200000,true),
+(bid,'Cullinan','cullinan','SUV','SUV-F','ICE','petrol',ARRAY['6.75L V12 571hp','6.75L V12 Black Badge 600hp'],NULL,NULL,2019,1100000,1600000,true),
+(bid,'Spectre','spectre','Coupe','F','BEV','electric',ARRAY['EM 584hp AWD dual'],102.0,530,2024,1200000,1600000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── BENTLEY ─────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'bentley';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Continental GT','continental-gt','Coupe','F','ICE','petrol',ARRAY['4.0L V8 550hp','6.0L W12 659hp Speed'],NULL,NULL,2018,680000,1250000,true),
+(bid,'Flying Spur','flying-spur','Sedan','F','ICE','petrol',ARRAY['2.9T V6 PHEV 544hp','4.0L V8 550hp','6.0L W12 626hp'],NULL,NULL,2020,580000,1100000,true),
+(bid,'Bentayga','bentayga','SUV','SUV-F','ICE','petrol',ARRAY['4.0L V8 550hp','4.0L V8 Extended 557hp'],NULL,NULL,2022,700000,1200000,true),
+(bid,'Bentayga Hybrid','bentayga-hybrid','SUV','SUV-F','PHEV','hybrid',ARRAY['3.0L V6 + EM 462hp'],18.0,50,2020,760000,950000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── MCLAREN ─────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'mclaren';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'720S','720s','Coupe','F','ICE','petrol',ARRAY['4.0L V8 720hp'],NULL,NULL,2017,830000,1100000,false),
+(bid,'Artura','artura','Coupe','F','PHEV','hybrid',ARRAY['3.0L V6 + EM 680hp'],7.4,30,2022,680000,900000,false)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── MASERATI ────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'maserati';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Ghibli Hybrid','ghibli-hybrid','Sedan','E','MHEV','hybrid',ARRAY['2.0T + 48V MHEV 330hp'],NULL,NULL,2021,230000,310000,false),
+(bid,'Levante','levante','SUV','SUV-E','ICE','petrol',ARRAY['2.0T V6 330hp','3.0T V6 430hp GTS','3.8T V8 Trofeo 580hp'],NULL,NULL,2019,250000,580000,true),
+(bid,'Grecale','grecale','SUV','SUV-D','ICE','petrol',ARRAY['2.0T 300hp','3.0T Trofeo 530hp'],NULL,NULL,2022,195000,580000,true),
+(bid,'GranTurismo Folgore','granturismo-folgore','Coupe','F','BEV','electric',ARRAY['3x EM 761hp'],92.5,450,2024,780000,980000,false)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── ASTON MARTIN ────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'aston-martin';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Vantage','vantage','Coupe','F','ICE','petrol',ARRAY['4.0L V8 503hp','4.0L V8 665hp'],2024,540000,780000,false),
+(bid,'DBX','dbx','SUV','SUV-E','ICE','petrol',ARRAY['4.0L V8 550hp','4.0L V8 707hp DBX707'],2020,540000,900000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── PEUGEOT ─────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'peugeot';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'308 PHEV','308-phev','Hatchback','C','PHEV','hybrid',ARRAY['1.6T + EM 225hp'],12.4,60,2022,110000,165000,false),
+(bid,'3008 EV','3008-ev','SUV','SUV-D','BEV','electric',ARRAY['EM 213hp 73kWh','EM 320hp AWD dual'],98.0,700,2024,130000,215000,true),
+(bid,'5008 EV','5008-ev','SUV','SUV-E','BEV','electric',ARRAY['EM 213hp','EM 320hp AWD dual'],98.0,660,2024,145000,230000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── RENAULT ─────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'renault';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Scenic E-Tech','scenic-etech','SUV','SUV-D','BEV','electric',ARRAY['EM 170hp 60kWh','EM 218hp 87kWh'],87.0,625,2024,115000,180000,true),
+(bid,'Megane E-Tech','megane-etech','Hatchback','C','BEV','electric',ARRAY['EM 130hp 40kWh','EM 218hp 60kWh'],60.0,470,2022,95000,150000,true),
+(bid,'5','renault-5','Hatchback','B','BEV','electric',ARRAY['EM 95hp 40kWh','EM 150hp 52kWh'],52.0,410,2024,75000,115000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+
+-- ─── TOYOTA ──────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'toyota';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Corolla','corolla','Sedan','C','HEV','hybrid',ARRAY['1.8L HEV 122hp','2.0L HEV 196hp'],NULL,NULL,2019,80000,145000,true),
+(bid,'Camry','camry','Sedan','E','HEV','hybrid',ARRAY['2.5L HEV 220hp','3.5L V6 301hp'],NULL,NULL,2018,90000,175000,true),
+(bid,'RAV4','rav4','SUV','SUV-D','HEV','hybrid',ARRAY['2.5L HEV 222hp'],NULL,NULL,2019,125000,230000,true),
+(bid,'RAV4 Prime','rav4-prime','SUV','SUV-D','PHEV','hybrid',ARRAY['2.5L + EM 306hp'],18.1,95,2020,150000,210000,true),
+(bid,'Highlander','highlander','SUV','SUV-F','HEV','hybrid',ARRAY['2.5L HEV 245hp 7-seater'],NULL,NULL,2020,185000,270000,true),
+(bid,'Land Cruiser 300','land-cruiser-300','SUV','SUV-F','ICE','petrol',ARRAY['3.5L V6 Twin-Turbo 415hp','3.3L V6 Diesel 309hp'],NULL,NULL,2022,215000,480000,true),
+(bid,'Land Cruiser Prado','land-cruiser-prado','SUV','SUV-E','ICE','diesel',ARRAY['2.8L Diesel 204hp','2.8L Diesel + HEV 250hp'],NULL,NULL,2024,180000,320000,true),
+(bid,'Land Cruiser 70','land-cruiser-70','SUV','SUV-F','ICE','diesel',ARRAY['4.2L Diesel 202hp','4.5L Diesel 235hp'],NULL,NULL,2019,110000,185000,true),
+(bid,'Fortuner','fortuner','SUV','SUV-E','ICE','diesel',ARRAY['2.8L Diesel 204hp','4.0L V6 270hp'],NULL,NULL,2020,95000,165000,true),
+(bid,'Hilux','hilux','Pickup','Pickup','ICE','diesel',ARRAY['2.4L Diesel 150hp','2.8L Diesel 204hp'],NULL,NULL,2021,90000,165000,true),
+(bid,'Tundra','tundra','Pickup','Pickup','ICE','petrol',ARRAY['3.4L V6 389hp','3.4L V6 HEV 437hp iForce Max'],NULL,NULL,2022,185000,280000,true),
+(bid,'Sequoia','sequoia','SUV','SUV-F','HEV','hybrid',ARRAY['3.4L V6 HEV 437hp'],NULL,NULL,2022,220000,380000,true),
+(bid,'4Runner','4runner','SUV','SUV-E','ICE','petrol',ARRAY['4.0L V6 270hp'],NULL,NULL,2022,140000,210000,true),
+(bid,'bZ4X','bz4x','SUV','SUV-D','BEV','electric',ARRAY['EM 204hp FWD','EM 218hp AWD dual'],72.8,516,2022,130000,185000,true),
+(bid,'GR Supra','gr-supra','Coupe','F','ICE','petrol',ARRAY['2.0T B48 258hp','3.0T B58 387hp'],NULL,NULL,2019,250000,380000,false)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── LEXUS ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'lexus';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'NX 450h+','nx-450h','SUV','SUV-D','PHEV','hybrid',ARRAY['2.5L + EM 309hp'],18.1,63,2022,185000,265000,true),
+(bid,'RX','rx','SUV','SUV-E','HEV','hybrid',ARRAY['2.5L HEV 246hp','2.5L PHEV 310hp 450h+'],NULL,NULL,2023,185000,325000,true),
+(bid,'GX','gx','SUV','SUV-F','ICE','petrol',ARRAY['3.4L V6 349hp'],NULL,NULL,2024,195000,300000,true),
+(bid,'LX','lx','SUV','SUV-F','ICE','petrol',ARRAY['3.5L V6 Twin-Turbo 416hp','3.3L Diesel 309hp'],NULL,NULL,2022,320000,520000,true),
+(bid,'ES','es','Sedan','E','HEV','hybrid',ARRAY['2.5L HEV 215hp'],NULL,NULL,2019,155000,240000,true),
+(bid,'LS','ls','Sedan','F','ICE','petrol',ARRAY['3.5L V6 Twin-Turbo 416hp','3.5L V6 HEV 359hp LS500h'],NULL,NULL,2018,310000,560000,true),
+(bid,'RZ','rz','SUV','SUV-D','BEV','electric',ARRAY['EM 313hp RZ300e','EM 313hp RZ450e dual'],71.4,440,2023,175000,265000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── NISSAN ──────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'nissan';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Sentra','sentra','Sedan','C','ICE','petrol',ARRAY['1.6L 122hp','2.0L 149hp'],NULL,NULL,2020,68000,110000,true),
+(bid,'Altima','altima','Sedan','D','ICE','petrol',ARRAY['2.5L 182hp','2.5L VC-Turbo 248hp'],NULL,NULL,2019,80000,145000,true),
+(bid,'Qashqai','qashqai','SUV','SUV-C','ICE','petrol',ARRAY['1.3T DIG-T 140hp','1.5T e-POWER HEV 190hp'],NULL,NULL,2021,90000,155000,true),
+(bid,'X-Trail','x-trail','SUV','SUV-D','HEV','hybrid',ARRAY['1.5T e-POWER HEV 203hp','1.5T e-POWER AWD e-4ORCE 213hp'],NULL,NULL,2022,120000,185000,true),
+(bid,'Patrol','patrol','SUV','SUV-F','ICE','petrol',ARRAY['4.0L V6 275hp','5.6L V8 400hp Platinum'],NULL,NULL,2020,165000,295000,true),
+(bid,'Pathfinder','pathfinder','SUV','SUV-F','ICE','petrol',ARRAY['3.5L V6 285hp'],NULL,NULL,2022,130000,190000,true),
+(bid,'Navara','navara','Pickup','Pickup','ICE','diesel',ARRAY['2.3L Diesel 163hp','2.3L Diesel 190hp'],NULL,NULL,2021,85000,145000,true),
+(bid,'Ariya','ariya','SUV','SUV-D','BEV','electric',ARRAY['EM 218hp FWD 63kWh','EM 242hp FWD 87kWh','EM 389hp e-4ORCE AWD'],87.0,533,2023,135000,230000,true),
+(bid,'GT-R','gt-r','Coupe','F','ICE','petrol',ARRAY['3.8T V6 570hp Nismo'],NULL,NULL,2017,390000,650000,false)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── HONDA ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'honda';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Civic','civic','Sedan','C','ICE','petrol',ARRAY['1.5T 182hp','2.0L Type R 329hp'],NULL,NULL,2022,80000,175000,true),
+(bid,'Civic e:HEV','civic-ehev','Sedan','C','HEV','hybrid',ARRAY['2.0L e:HEV 184hp'],NULL,NULL,2022,100000,145000,true),
+(bid,'Accord','accord','Sedan','D','HEV','hybrid',ARRAY['2.0L e:HEV 204hp','1.5T 192hp'],NULL,NULL,2023,105000,165000,true),
+(bid,'CR-V','cr-v','SUV','SUV-D','PHEV','hybrid',ARRAY['2.0L e:HEV 184hp','2.0L e:PHEV 204hp'],17.7,81,2023,120000,185000,true),
+(bid,'Pilot','pilot','SUV','SUV-F','ICE','petrol',ARRAY['3.5L V6 285hp'],NULL,NULL,2023,140000,215000,true),
+(bid,'Prologue','prologue','SUV','SUV-E','BEV','electric',ARRAY['EM 296hp RWD','EM 288hp AWD dual'],85.0,476,2024,135000,195000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── MAZDA ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'mazda';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'CX-5','cx-5','SUV','SUV-D','ICE','petrol',ARRAY['2.0L 163hp','2.5L 194hp','2.5T 265hp'],NULL,NULL,2022,100000,175000,true),
+(bid,'CX-60 PHEV','cx-60-phev','SUV','SUV-E','PHEV','hybrid',ARRAY['2.5L PHEV e-SKYACTIV 327hp'],17.8,62,2022,145000,235000,false),
+(bid,'CX-90 PHEV','cx-90-phev','SUV','SUV-F','PHEV','hybrid',ARRAY['2.5L PHEV 327hp'],17.8,61,2024,175000,275000,true),
+(bid,'MX-5','mx-5','Convertible','D','ICE','petrol',ARRAY['1.5L 132hp','2.0L 184hp'],NULL,NULL,2019,105000,155000,false)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── MITSUBISHI ──────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'mitsubishi';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Eclipse Cross PHEV','eclipse-cross-phev','SUV','SUV-D','PHEV','hybrid',ARRAY['2.4L PHEV 224hp'],13.8,55,2021,100000,155000,true),
+(bid,'Outlander PHEV','outlander-phev','SUV','SUV-E','PHEV','hybrid',ARRAY['2.4L PHEV 248hp'],20.0,87,2022,130000,195000,true),
+(bid,'L200 Triton','l200-triton','Pickup','Pickup','ICE','diesel',ARRAY['2.4L Diesel 181hp','2.4L Diesel 204hp'],NULL,NULL,2024,85000,145000,true),
+(bid,'Pajero Sport','pajero-sport','SUV','SUV-E','ICE','diesel',ARRAY['2.4L Diesel 181hp'],NULL,NULL,2021,95000,145000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── HYUNDAI ─────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'hyundai';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Tucson PHEV','tucson-phev','SUV','SUV-D','PHEV','hybrid',ARRAY['1.6T + EM 265hp'],13.8,62,2021,105000,200000,true),
+(bid,'Santa Fe PHEV','santa-fe-phev','SUV','SUV-E','PHEV','hybrid',ARRAY['1.6T PHEV 265hp 7-seater'],13.8,51,2021,155000,265000,true),
+(bid,'Palisade','palisade','SUV','SUV-F','ICE','petrol',ARRAY['3.8L V6 295hp','2.2L Diesel 200hp'],NULL,NULL,2020,145000,240000,true),
+(bid,'IONIQ 5','ioniq-5','SUV','SUV-D','BEV','electric',ARRAY['EM 170hp 58kWh','EM 218hp 84kWh','EM 325hp AWD dual'],84.0,507,2022,135000,215000,true),
+(bid,'IONIQ 6','ioniq-6','Sedan','D','BEV','electric',ARRAY['EM 151hp RWD','EM 225hp 77kWh','EM 320hp AWD dual'],77.4,614,2023,135000,210000,true),
+(bid,'IONIQ 9','ioniq-9','SUV','SUV-F','BEV','electric',ARRAY['EM 270hp RWD','EM 384hp AWD dual'],110.3,620,2025,210000,320000,true),
+(bid,'Staria','staria','MPV','LCV','ICE','diesel',ARRAY['2.2L Diesel 177hp'],NULL,NULL,2021,110000,185000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── KIA ─────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'kia';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Sportage PHEV','sportage-phev','SUV','SUV-D','PHEV','hybrid',ARRAY['1.6T PHEV 265hp'],13.8,70,2022,100000,195000,true),
+(bid,'Sorento PHEV','sorento-phev','SUV','SUV-E','PHEV','hybrid',ARRAY['1.6T PHEV 261hp'],13.8,57,2021,145000,250000,true),
+(bid,'Telluride','telluride','SUV','SUV-F','ICE','petrol',ARRAY['3.8L V6 291hp'],NULL,NULL,2020,155000,235000,true),
+(bid,'Carnival','carnival','MPV','LCV','ICE','petrol',ARRAY['3.5L V6 290hp','2.2L Diesel 200hp'],NULL,NULL,2021,125000,210000,true),
+(bid,'EV6','ev6','Sedan','D','BEV','electric',ARRAY['EM 168hp 58kWh','EM 228hp 77kWh','EM 325hp AWD GT dual'],77.4,528,2022,125000,215000,true),
+(bid,'EV9','ev9','SUV','SUV-F','BEV','electric',ARRAY['EM 215hp 76kWh','EM 283hp 99kWh','EM 379hp AWD dual GT'],99.8,541,2024,210000,335000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── GENESIS ─────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'genesis';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'G80','g80','Sedan','E','ICE','petrol',ARRAY['2.5T V6 304hp','3.5T V6 375hp'],NULL,NULL,2021,195000,380000,true),
+(bid,'G80 EV','g80-ev','Sedan','E','BEV','electric',ARRAY['EM 365hp AWD dual 87kWh'],87.2,427,2022,230000,310000,false),
+(bid,'G90','g90','Sedan','F','ICE','petrol',ARRAY['3.5T V6 375hp','5.0L V8 N/A 425hp'],NULL,NULL,2023,320000,580000,true),
+(bid,'GV80','gv80','SUV','SUV-E','ICE','petrol',ARRAY['2.5T 304hp','3.5T 380hp'],NULL,NULL,2021,215000,380000,true),
+(bid,'GV70','gv70','SUV','SUV-D','ICE','petrol',ARRAY['2.5T 304hp','3.5T 380hp'],NULL,NULL,2021,175000,310000,true),
+(bid,'GV60','gv60','SUV','SUV-C','BEV','electric',ARRAY['EM 229hp','EM 320hp AWD dual','EM 429hp Performance dual'],77.4,490,2022,165000,270000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+
+-- ─── TESLA ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'tesla';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Model S','model-s','Sedan','F','BEV','electric',ARRAY['EM 670hp Long Range dual','EM 1020hp Plaid tri-motor'],100.0,663,2012,290000,550000,true),
+(bid,'Model 3','model-3','Sedan','D','BEV','electric',ARRAY['EM 283hp RWD','EM 346hp Long Range AWD','EM 460hp Performance dual'],82.0,602,2017,120000,225000,true),
+(bid,'Model X','model-x','SUV','SUV-F','BEV','electric',ARRAY['EM 670hp Long Range dual','EM 1020hp Plaid tri-motor'],100.0,560,2015,325000,600000,true),
+(bid,'Model Y','model-y','SUV','SUV-D','BEV','electric',ARRAY['EM 299hp RWD','EM 384hp Long Range AWD','EM 456hp Performance dual'],82.0,533,2020,120000,230000,true),
+(bid,'Cybertruck','cybertruck','Pickup','Pickup','BEV','electric',ARRAY['EM 600hp AWD dual','EM 845hp Cyberbeast tri-motor'],123.0,547,2023,220000,380000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── FORD ────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'ford';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Mustang','mustang','Coupe','D','ICE','petrol',ARRAY['2.3T EcoBoost 315hp','5.0L V8 GT 450hp','5.2L V8 Dark Horse 500hp'],NULL,NULL,2024,115000,260000,true),
+(bid,'Mustang Mach-E','mustang-mach-e','SUV','SUV-D','BEV','electric',ARRAY['EM 269hp Standard Range','EM 351hp Extended','EM 487hp GT Performance dual'],98.7,610,2021,130000,230000,true),
+(bid,'Explorer','explorer','SUV','SUV-F','ICE','petrol',ARRAY['2.3T EcoBoost 300hp','3.0T ST 400hp'],NULL,NULL,2020,140000,250000,true),
+(bid,'Expedition','expedition','SUV','SUV-F','ICE','petrol',ARRAY['3.5T EcoBoost V6 375hp','3.5T EcoBoost V6 440hp'],NULL,NULL,2022,200000,370000,true),
+(bid,'F-150','f-150','Pickup','Pickup','ICE','petrol',ARRAY['2.7T EcoBoost V6 325hp','3.5T EcoBoost V6 400hp','5.0L V8 400hp'],NULL,NULL,2021,115000,235000,true),
+(bid,'F-150 Lightning','f-150-lightning','Pickup','Pickup','BEV','electric',ARRAY['EM 452hp Standard Range','EM 580hp Extended dual'],131.0,515,2022,155000,265000,true),
+(bid,'F-150 Raptor','f-150-raptor','Pickup','Pickup','ICE','petrol',ARRAY['3.5T EcoBoost V6 450hp','5.2L V8 Raptor R 700hp'],NULL,NULL,2021,180000,340000,true),
+(bid,'Bronco','bronco','SUV','SUV-D','ICE','petrol',ARRAY['2.3T EcoBoost 275hp','2.7T EcoBoost V6 330hp'],NULL,NULL,2021,135000,220000,true),
+(bid,'Ranger','ranger','Pickup','Pickup','ICE','diesel',ARRAY['2.0T Diesel 170hp','2.0T Diesel 210hp','2.3T Petrol Raptor 284hp'],NULL,NULL,2022,95000,185000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── CHEVROLET ───────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'chevrolet';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Silverado 1500','silverado-1500','Pickup','Pickup','ICE','petrol',ARRAY['2.7T 310hp','5.3L V8 355hp','6.2L V8 420hp'],NULL,NULL,2019,110000,235000,true),
+(bid,'Tahoe','tahoe','SUV','SUV-F','ICE','petrol',ARRAY['5.3L V8 355hp','6.2L V8 420hp'],NULL,NULL,2021,190000,350000,true),
+(bid,'Suburban','suburban','SUV','SUV-F','ICE','petrol',ARRAY['5.3L V8 355hp','6.2L V8 420hp'],NULL,NULL,2021,220000,380000,true),
+(bid,'Equinox EV','equinox-ev','SUV','SUV-C','BEV','electric',ARRAY['EM 213hp FWD','EM 288hp AWD'],85.0,513,2024,105000,175000,true),
+(bid,'Corvette','corvette','Coupe','F','ICE','petrol',ARRAY['6.2L V8 495hp','5.5L V8 Z06 670hp'],NULL,NULL,2020,330000,680000,false),
+(bid,'Traverse','traverse','SUV','SUV-F','ICE','petrol',ARRAY['2.5L 230hp','3.6L V6 318hp'],NULL,NULL,2024,130000,210000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── GMC ─────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'gmc';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Sierra 1500','sierra-1500','Pickup','Pickup','ICE','petrol',ARRAY['2.7T 310hp','5.3L V8 355hp','6.2L V8 420hp'],2019,120000,250000,true),
+(bid,'Yukon','yukon','SUV','SUV-F','ICE','petrol',ARRAY['5.3L V8 355hp','6.2L V8 420hp AT4X'],2021,185000,360000,true),
+(bid,'Canyon','canyon','Pickup','Pickup','ICE','petrol',ARRAY['2.5L 237hp','2.7T 310hp AT4X'],2023,95000,175000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── CADILLAC ────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'cadillac';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Escalade','escalade','SUV','SUV-F','ICE','petrol',ARRAY['6.2L V8 420hp','3.0L Diesel 277hp'],NULL,NULL,2021,320000,580000,true),
+(bid,'LYRIQ','lyriq','SUV','SUV-E','BEV','electric',ARRAY['EM 340hp RWD','EM 500hp AWD dual'],102.0,530,2023,210000,310000,true),
+(bid,'CT5','ct5','Sedan','E','ICE','petrol',ARRAY['2.0T 237hp','3.0T CT5-V 360hp','6.2L Blackwing 668hp'],NULL,NULL,2020,145000,380000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── JEEP ────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'jeep';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Wrangler','wrangler','SUV','SUV-D','ICE','petrol',ARRAY['2.0T 272hp','3.6L V6 285hp','6.4L V8 392 470hp'],NULL,NULL,2018,115000,290000,true),
+(bid,'Wrangler 4xe','wrangler-4xe','SUV','SUV-D','PHEV','hybrid',ARRAY['2.0T + EM 375hp'],17.3,40,2021,155000,225000,false),
+(bid,'Grand Cherokee','grand-cherokee','SUV','SUV-E','ICE','petrol',ARRAY['3.6L V6 293hp','5.7L V8 357hp'],NULL,NULL,2022,165000,450000,true),
+(bid,'Grand Cherokee 4xe','grand-cherokee-4xe','SUV','SUV-E','PHEV','hybrid',ARRAY['2.0T + EM 375hp'],17.3,40,2022,195000,280000,true),
+(bid,'Gladiator','gladiator','Pickup','Pickup','ICE','petrol',ARRAY['3.6L V6 285hp','3.0L Diesel 260hp'],NULL,NULL,2019,125000,210000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── RAM ─────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'ram';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Ram 1500','ram-1500','Pickup','Pickup','ICE','petrol',ARRAY['3.6L V6 305hp','5.7L V8 395hp','6.2L V8 TRX 702hp'],2019,110000,280000,true),
+(bid,'Ram 2500','ram-2500','Pickup','Pickup','ICE','diesel',ARRAY['6.7L Diesel 400hp Cummins','6.4L HEMI V8 410hp'],2020,135000,235000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── DODGE ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'dodge';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Challenger','challenger','Coupe','D','ICE','petrol',ARRAY['3.6L V6 303hp','5.7L V8 375hp','6.2L Hellcat 717hp','6.2L Demon 1025hp'],2022,110000,360000,false),
+(bid,'Durango','durango','SUV','SUV-F','ICE','petrol',ARRAY['3.6L V6 295hp','5.7L V8 360hp','6.4L V8 SRT 475hp'],2022,130000,390000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── LINCOLN ─────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'lincoln';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Navigator','navigator','SUV','SUV-F','ICE','petrol',ARRAY['3.5T V6 440hp'],NULL,NULL,2022,310000,480000,true),
+(bid,'Aviator PHEV','aviator-phev','SUV','SUV-E','PHEV','hybrid',ARRAY['3.0T V6 PHEV 494hp'],13.6,42,2020,230000,350000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── RIVIAN ──────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'rivian';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'R1T','r1t','Pickup','Pickup','BEV','electric',ARRAY['EM 533hp Standard dual','EM 835hp Max Quad'],135.0,507,2021,190000,320000,true),
+(bid,'R1S','r1s','SUV','SUV-F','BEV','electric',ARRAY['EM 533hp Standard dual','EM 835hp Max Quad'],135.0,483,2021,200000,340000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── LUCID ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'lucid';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Air Grand Touring','air-grand-touring','Sedan','F','BEV','electric',ARRAY['EM 819hp AWD dual'],112.0,837,2022,440000,580000,true),
+(bid,'Air Sapphire','air-sapphire','Sedan','F','BEV','electric',ARRAY['EM 1234hp tri-motor'],118.0,687,2023,680000,820000,false),
+(bid,'Gravity','gravity','SUV','SUV-F','BEV','electric',ARRAY['EM 828hp AWD dual'],113.0,708,2025,420000,560000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+
+-- ─── BYD ─────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'byd';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'Atto 3','atto-3','SUV','SUV-C','BEV','electric',ARRAY['EM 204hp 60kWh'],60.5,420,2022,80000,115000,true,'Export name for Yuan Plus. Top export model for Africa & Middle East.'),
+(bid,'Seal','seal','Sedan','D','BEV','electric',ARRAY['EM 313hp RWD','EM 530hp AWD dual'],82.5,700,2023,90000,145000,true,'CTB cell-to-body technology. 0-100 in 3.8s.'),
+(bid,'Dolphin','dolphin','Hatchback','C','BEV','electric',ARRAY['EM 95hp 44kWh','EM 204hp 60kWh'],60.5,427,2021,65000,100000,true,'Urban BEV, compact. Popular in GCC & Africa.'),
+(bid,'Han EV','han-ev','Sedan','E','BEV','electric',ARRAY['EM 517hp dual','EM 380hp RWD'],85.4,610,2020,95000,145000,true,'BYD blade battery. Flagship sedan.'),
+(bid,'Han DM-i','han-dmi','Sedan','E','PHEV','hybrid',ARRAY['2.0L + EM DM-i 245hp'],37.5,1200,2022,105000,155000,true,'DM-i Super Hybrid. Total range 1200km.'),
+(bid,'Tang DM-i','tang-dmi','SUV','SUV-F','PHEV','hybrid',ARRAY['2.0T + EM DM-i 235hp'],37.5,1000,2022,135000,185000,true,'7-seater SUV. 100km EV range.'),
+(bid,'Song Plus DM-i','song-plus-dmi','SUV','SUV-D','PHEV','hybrid',ARRAY['1.5L + EM DM-i 102hp'],18.3,1100,2021,75000,115000,true,'Best-selling BYD SUV export model.'),
+(bid,'Song Plus EV','song-plus-ev','SUV','SUV-D','BEV','electric',ARRAY['EM 204hp'],71.8,505,2021,82000,120000,true,'BEV version of Song Plus.'),
+(bid,'Song L DM-i','song-l-dmi','SUV','SUV-D','PHEV','hybrid',ARRAY['1.5L + EM DM5.0 197hp'],28.4,1200,2024,98000,140000,true,'5th gen DM platform. 100km+ EV range.'),
+(bid,'Sealion 7','sealion-7','SUV','SUV-D','BEV','electric',ARRAY['EM 308hp RWD','EM 530hp AWD dual'],82.5,570,2024,100000,155000,true,'Tesla Model Y competitor.'),
+(bid,'Seagull','seagull','Hatchback','A','BEV','electric',ARRAY['EM 55hp 10kWh','EM 75hp 17kWh'],17.0,405,2023,35000,55000,false,'Ultra-affordable city EV.'),
+(bid,'U8 PHEV','u8-phev','SUV','SUV-F','PHEV','hybrid',ARRAY['4x EM + 2.0T generator 536hp'],49.5,1000,2023,450000,580000,false,'Ultra-luxury off-road PHEV with tank-turn function.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── NIO ─────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'nio';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'ET5','et5','Sedan','D','BEV','electric',ARRAY['EM 360hp 75kWh','EM 360hp 100kWh'],100.0,580,2022,145000,200000,true,'Battery swappable + chargeable.'),
+(bid,'ET7','et7','Sedan','F','BEV','electric',ARRAY['EM 644hp AWD 100kWh','EM 644hp AWD 150kWh Ultra'],150.0,1000,2022,225000,320000,true,'150kWh semi solid-state battery option. 1000km range.'),
+(bid,'EL7','el7','SUV','SUV-E','BEV','electric',ARRAY['EM 644hp AWD 100kWh'],100.0,509,2023,220000,300000,false,'Flagship SUV with air suspension.'),
+(bid,'EC6','ec6','Coupe','SUV-D','BEV','electric',ARRAY['EM 489hp AWD 100kWh'],100.0,521,2024,190000,260000,false,'Fastback coupe-SUV style.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── LI AUTO ─────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'li-auto';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'L6','l6','SUV','SUV-D','REEV','hybrid',ARRAY['1.5T generator + EM 384hp REEV'],34.4,1390,2024,105000,145000,true,'REEV: electric drive, engine generates power only. EV range 150km.'),
+(bid,'L7','l7','SUV','SUV-E','REEV','hybrid',ARRAY['1.5T generator + EM 449hp REEV'],42.8,1315,2023,155000,215000,true,'7-seater REEV. 200km EV-only range.'),
+(bid,'L8','l8','SUV','SUV-F','REEV','hybrid',ARRAY['1.5T generator + dual EM 449hp REEV'],42.8,1315,2023,175000,240000,true,'6-seater family SUV REEV.'),
+(bid,'L9','l9','SUV','SUV-F','REEV','hybrid',ARRAY['1.5T generator + dual EM 449hp REEV'],42.8,1315,2022,215000,285000,true,'Flagship 6-seater. Fridge inside. Conference mode.'),
+(bid,'MEGA','mega','MPV','LCV','BEV','electric',ARRAY['EM 400hp AWD dual'],102.7,710,2024,285000,340000,false,'Ultra-premium MPV.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── XPENG ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'xpeng';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'P7i','p7i','Sedan','D','BEV','electric',ARRAY['EM 316hp RWD','EM 551hp AWD+ dual'],100.0,710,2023,120000,195000,true,'XNGP full-route autonomous capability.'),
+(bid,'G6','g6','SUV','SUV-D','BEV','electric',ARRAY['EM 218hp RWD','EM 393hp AWD dual'],87.5,570,2023,110000,170000,true,'800V platform. 10min for 200km charge.'),
+(bid,'G9','g9','SUV','SUV-E','BEV','electric',ARRAY['EM 272hp RWD','EM 405hp AWD dual','EM 576hp AWD+ Performance'],98.0,570,2022,155000,240000,true,'LiDAR roof. 800V. Flagship SUV.'),
+(bid,'Mona M03','mona-m03','Sedan','C','BEV','electric',ARRAY['EM 170hp','EM 218hp'],62.2,620,2024,65000,95000,true,'Budget EV with full ADAS.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── AITO ────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'aito';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'M5 REEV','m5-reev','SUV','SUV-D','REEV','hybrid',ARRAY['1.5T generator + EM 365hp REEV'],40.0,1500,2022,120000,175000,true,'Huawei HarmonyOS. REEV + BEV variants.'),
+(bid,'M7','m7','SUV','SUV-F','REEV','hybrid',ARRAY['1.5T generator + EM 330hp REEV'],40.0,1300,2023,145000,215000,true,'6-seater REEV. Huawei ADS2 autonomous driving.'),
+(bid,'M9','m9','SUV','SUV-F','REEV','hybrid',ARRAY['1.5T generator + dual EM 734hp REEV','EM 734hp BEV dual'],42.0,1400,2024,280000,380000,true,'Huawei flagship 6-seater. Tri-zone fridge.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── HAVAL ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'haval';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'Jolion','jolion','SUV','SUV-C','ICE','petrol',ARRAY['1.5T 156hp','1.5T HEV 190hp'],2021,55000,95000,true,'Best-seller export SUV.'),
+(bid,'H6','h6','SUV','SUV-D','ICE','petrol',ARRAY['2.0T 211hp','2.0T HEV 240hp'],2021,80000,135000,true,'Long-time #1 bestselling Chinese SUV.'),
+(bid,'H9','h9','SUV','SUV-F','ICE','petrol',ARRAY['2.0T 245hp','3.0T V6 354hp'],2020,145000,225000,true,'Body-on-frame Haval flagship.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── TANK ────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'tank';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'Tank 300','tank-300','SUV','SUV-D','PHEV','hybrid',ARRAY['2.0T PHEV Hi4-T 275hp'],31.0,120,2021,135000,185000,true,'Body-on-frame PHEV off-roader. Land Cruiser competitor.'),
+(bid,'Tank 400','tank-400','SUV','SUV-E','PHEV','hybrid',ARRAY['3.0T V6 PHEV Hi4-T 340hp'],31.0,100,2022,185000,265000,true,'V6 luxury off-road PHEV. 7-seater.'),
+(bid,'Tank 500','tank-500','SUV','SUV-F','PHEV','hybrid',ARRAY['3.0T V6 PHEV Hi4-T 348hp'],45.0,130,2022,240000,340000,true,'Flagship luxury off-road PHEV.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── MG ──────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'mg';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'ZS EV','zs-ev','SUV','SUV-C','BEV','electric',ARRAY['EM 177hp 51kWh'],50.3,440,2019,75000,110000,true,'Affordable EV SUV. Popular export.'),
+(bid,'MG4','mg4','Hatchback','C','BEV','electric',ARRAY['EM 170hp 64kWh','EM 204hp 77kWh','EM 360hp XPOWER dual'],77.0,520,2022,80000,130000,true,'Car of the Year Europe 2023.'),
+(bid,'MG5 EV','mg5-ev','Wagon','C','BEV','electric',ARRAY['EM 156hp 50kWh','EM 156hp 61kWh'],61.0,400,2021,75000,110000,false,'Only BEV estate in this price segment.'),
+(bid,'HS PHEV','hs-phev','SUV','SUV-D','PHEV','hybrid',ARRAY['1.5T PHEV 258hp'],16.6,52,2022,90000,140000,true,'C-SUV popular in UAE & GCC.'),
+(bid,'Cyberster','cyberster','Convertible','D','BEV','electric',ARRAY['EM 341hp RWD','EM 536hp AWD dual'],77.0,501,2023,175000,235000,false,'Electric roadster with scissor doors.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── CHERY ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'chery';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'Tiggo 4 Pro','tiggo-4-pro','SUV','SUV-C','ICE','petrol',ARRAY['1.5T 147hp'],2022,55000,85000,true,'Entry SUV. Massive export seller.'),
+(bid,'Tiggo 7 Pro','tiggo-7-pro','SUV','SUV-D','ICE','petrol',ARRAY['1.5T 147hp','2.0T 197hp'],2022,70000,115000,true,'Mid-size SUV. Popular in Middle East.'),
+(bid,'Tiggo 8 Pro','tiggo-8-pro','SUV','SUV-E','ICE','petrol',ARRAY['2.0T 197hp'],2021,90000,145000,true,'7-seater. Strong export model.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── OMODA ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'omoda';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'5','omoda-5','SUV','SUV-C','ICE','petrol',ARRAY['1.6T 197hp'],NULL,NULL,2023,65000,95000,true,'Design-forward compact SUV.'),
+(bid,'C5 E','omoda-c5-e','SUV','SUV-C','BEV','electric',ARRAY['EM 204hp 61kWh'],61.0,430,2023,80000,120000,true,'Export BEV. Strong in GCC markets.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── GAC AION ────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'gac-aion';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'AION Y','aion-y','SUV','SUV-C','BEV','electric',ARRAY['EM 143hp 41kWh','EM 204hp 63kWh'],63.0,600,2021,65000,100000,true,'Ultra popular EV in China. Now exporting globally.'),
+(bid,'AION S','aion-s','Sedan','C','BEV','electric',ARRAY['EM 135hp 53kWh','EM 204hp 70kWh'],70.0,601,2020,60000,95000,true,'Sedan BEV. Popular for taxi fleets + retail.'),
+(bid,'AION LX Plus','aion-lx-plus','SUV','SUV-E','BEV','electric',ARRAY['EM 794hp dual 144kWh'],144.0,1008,2022,195000,275000,false,'1000km+ range SUV.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── ZEEKR ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'zeekr';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'001','zeekr-001','Wagon','D','BEV','electric',ARRAY['EM 272hp RWD','EM 544hp AWD dual'],100.0,623,2021,145000,220000,true,'Shooting brake BEV. Geely SEA platform.'),
+(bid,'007','zeekr-007','Sedan','D','BEV','electric',ARRAY['EM 310hp RWD 75kWh','EM 475hp AWD dual'],100.0,688,2024,120000,200000,true,'800V 15-minute fast charge.'),
+(bid,'X','zeekr-x','SUV','SUV-B','BEV','electric',ARRAY['EM 200hp','EM 406hp AWD dual'],66.0,560,2023,95000,155000,true,'Compact performance BEV. Popular export.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── HONGQI ──────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'hongqi';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'E-HS9','e-hs9','SUV','SUV-F','BEV','electric',ARRAY['EM 551hp AWD dual'],99.0,510,2021,260000,360000,false,'China state car electric SUV. 6-seater.'),
+(bid,'H9','hongqi-h9','Sedan','F','ICE','petrol',ARRAY['3.0T V6 275hp','3.0T V6 330hp'],NULL,NULL,2020,220000,380000,false,'Chinese state car premium sedan.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── VOYAH ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'voyah';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'Free','voyah-free','SUV','SUV-E','REEV','hybrid',ARRAY['EM 425hp REEV','EM 360hp BEV'],88.0,1000,2021,190000,265000,false,'Dongfeng luxury REEV SUV.'),
+(bid,'Dreamer','voyah-dreamer','MPV','LCV','REEV','hybrid',ARRAY['EM 475hp REEV'],88.0,1100,2023,245000,320000,false,'Premium MPV with Huawei smart cockpit.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── DEEPAL ──────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'deepal';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'S7','deepal-s7','SUV','SUV-D','BEV','electric',ARRAY['EM 215hp','EM 340hp AWD dual'],80.0,520,2023,95000,145000,true,'Changan Deepal BEV SUV.'),
+(bid,'L07 REEV','deepal-l07','SUV','SUV-E','REEV','hybrid',ARRAY['1.5T + EM REEV 357hp'],40.0,1200,2024,120000,170000,false,'6-seater REEV SUV from Changan.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── LEAPMOTOR ───────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'leapmotor';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'C10','leapmotor-c10','SUV','SUV-D','BEV','electric',ARRAY['EM 218hp','EM 422hp AWD dual'],69.9,500,2024,80000,130000,true,'Stellantis partnership. Global export EV.'),
+(bid,'B10','leapmotor-b10','Hatchback','B','BEV','electric',ARRAY['EM 134hp'],37.3,400,2025,55000,85000,true,'Ultra compact affordable EV via Stellantis.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── DENZA ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'denza';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'D9 PHEV','d9-phev','MPV','LCV','PHEV','hybrid',ARRAY['2.0T PHEV DM-i 196hp','EM 355hp BEV dual'],103.0,600,2022,165000,250000,true,'BYD/Mercedes JV premium MPV. Ultra popular export.'),
+(bid,'N7','denza-n7','Sedan','D','BEV','electric',ARRAY['EM 310hp RWD','EM 536hp AWD dual'],91.3,702,2023,125000,190000,false,'EV sedan with Mercedes co-development.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── WULING ──────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'wuling';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'Air EV','wuling-air-ev','Hatchback','A','BEV','electric',ARRAY['EM 27hp 17.3kWh','EM 40hp 26.7kWh Plus'],26.7,300,2021,25000,40000,true,'Best-selling EV in Indonesia. Popular in Africa & SE Asia.'),
+(bid,'Bingo','wuling-bingo','Hatchback','A','BEV','electric',ARRAY['EM 46hp 17kWh Standard','EM 93hp 37kWh Long Range'],37.0,333,2023,28000,52000,true,'Successor to HongGuang Mini EV for export.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── NETA ────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'neta';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'Neta V','neta-v','SUV','SUV-B','BEV','electric',ARRAY['EM 70hp 40kWh','EM 95hp 38kWh'],40.0,401,2020,40000,68000,true,'Budget EV popular in SE Asia & Middle East.'),
+(bid,'Neta X','neta-x','SUV','SUV-C','BEV','electric',ARRAY['EM 218hp','EM 340hp AWD dual'],72.0,510,2023,75000,120000,false,NULL)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── AVATR ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'avatr';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'Avatr 11','avatr-11','SUV','SUV-D','BEV','electric',ARRAY['EM 578hp AWD dual'],90.4,570,2022,175000,265000,false,'CATL/Changan/Huawei BEV SUV.'),
+(bid,'Avatr 12','avatr-12','Sedan','D','BEV','electric',ARRAY['EM 425hp RWD','EM 578hp AWD dual'],116.8,700,2024,185000,295000,false,'Flagship BEV sedan.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── ONVO ────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'onvo';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'L60','onvo-l60','SUV','SUV-D','BEV','electric',ARRAY['EM 340hp AWD dual'],85.0,555,2024,105000,155000,true,'NIO sub-brand budget EV. Model Y rival.'),
+(bid,'L90','onvo-l90','SUV','SUV-F','BEV','electric',ARRAY['EM 340hp AWD dual 7-seat'],110.0,645,2025,140000,200000,false,'3-row EV SUV from NIO Onvo brand.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── LUXEED ──────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'luxeed';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular,notes) VALUES
+(bid,'S7','luxeed-s7','Sedan','E','BEV','electric',ARRAY['EM 425hp RWD','EM 609hp AWD dual Ultra'],100.0,766,2024,185000,285000,false,'Chery/Huawei premium BEV sedan with Harmony cockpit.'),
+(bid,'R7','luxeed-r7','SUV','SUV-E','BEV','electric',ARRAY['EM 425hp RWD','EM 609hp AWD dual'],100.0,630,2025,195000,290000,false,'SUV version of Luxeed lineup.')
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── POLESTAR ────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'polestar';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Polestar 2','polestar-2','Sedan','D','BEV','electric',ARRAY['EM 224hp Standard','EM 299hp Long Range','EM 476hp Performance dual'],82.0,655,2020,145000,270000,true),
+(bid,'Polestar 3','polestar-3','SUV','SUV-E','BEV','electric',ARRAY['EM 489hp dual','EM 544hp Performance dual'],111.0,628,2023,270000,380000,true),
+(bid,'Polestar 4','polestar-4','SUV','SUV-D','BEV','electric',ARRAY['EM 272hp','EM 544hp dual'],100.0,614,2024,205000,330000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── CUPRA ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'cupra';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Born','born','Hatchback','C','BEV','electric',ARRAY['EM 150hp 58kWh','EM 204hp 77kWh'],77.0,570,2021,100000,155000,false),
+(bid,'Formentor','formentor','SUV','SUV-C','PHEV','hybrid',ARRAY['1.5T 150hp','2.0T 310hp VZ5','1.4T PHEV e-Hybrid 245hp'],12.8,51,2021,115000,230000,false),
+(bid,'Tavascan','tavascan','SUV','SUV-D','BEV','electric',ARRAY['EM 286hp','EM 340hp AWD VZ dual'],82.0,517,2024,145000,215000,false)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── ALPINE ──────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'alpine';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'A110','a110','Coupe','D','ICE','petrol',ARRAY['1.8T 252hp','1.8T GT 300hp','1.8T R 300hp track'],NULL,NULL,2017,215000,320000,false),
+(bid,'A110 E','a110-e','Coupe','D','BEV','electric',ARRAY['EM 184hp 54kWh'],54.0,420,2024,230000,280000,false),
+(bid,'A290','a290','Hatchback','B','BEV','electric',ARRAY['EM 180hp','EM 220hp GT'],52.0,380,2025,95000,145000,false)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── MINI ────────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'mini';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Cooper','mini-cooper','Hatchback','B','ICE','petrol',ARRAY['1.5T 136hp','2.0T JCW 231hp'],NULL,NULL,2024,90000,175000,false),
+(bid,'Cooper E','mini-cooper-e','Hatchback','B','BEV','electric',ARRAY['EM 184hp 40kWh E','EM 218hp 54kWh SE'],54.0,402,2024,105000,155000,false),
+(bid,'Countryman','mini-countryman','SUV','SUV-C','PHEV','hybrid',ARRAY['1.5T 150hp','2.0T 204hp S','2.0T PHEV 326hp SE ALL4'],19.3,80,2024,115000,220000,true),
+(bid,'Countryman EV','mini-countryman-ev','SUV','SUV-C','BEV','electric',ARRAY['EM 204hp E','EM 313hp SE ALL4 dual'],66.0,462,2024,135000,195000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── ALFA ROMEO ──────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'alfa-romeo';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Stelvio','stelvio','SUV','SUV-D','ICE','petrol',ARRAY['2.0T 200hp','2.0T 280hp','2.9T V6 Quadrifoglio 510hp'],2017,145000,400000,true),
+(bid,'Tonale PHEV','tonale-phev','SUV','SUV-C','PHEV','hybrid',ARRAY['1.3T PHEV 280hp'],15.5,80,2022,115000,195000,false),
+(bid,'Junior EV','junior-ev','SUV','SUV-B','BEV','electric',ARRAY['EM 136hp','EM 240hp Veloce dual'],NULL,NULL,2025,95000,155000,false)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── SKODA ───────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'skoda';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Octavia','octavia','Sedan','D','ICE','petrol',ARRAY['1.0T 110hp','1.5T 150hp','2.0T RS 265hp'],NULL,NULL,2020,80000,165000,false),
+(bid,'Kodiaq','kodiaq','SUV','SUV-E','PHEV','hybrid',ARRAY['1.5T eTSI 150hp','2.0T iV PHEV 204hp'],19.7,100,2024,130000,200000,true),
+(bid,'Enyaq','enyaq','SUV','SUV-D','BEV','electric',ARRAY['EM 174hp 62kWh','EM 204hp 82kWh','EM 299hp Coupe RS dual'],82.0,539,2021,125000,200000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── VOLKSWAGEN ──────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'volkswagen';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'Golf','golf','Hatchback','C','ICE','petrol',ARRAY['1.0T 110hp','1.5T 150hp','2.0T GTI 265hp','2.0T R 333hp'],NULL,NULL,2020,90000,205000,true),
+(bid,'Golf GTE','golf-gte','Hatchback','C','PHEV','hybrid',ARRAY['1.4T + EM 245hp'],19.7,80,2021,120000,160000,false),
+(bid,'Tiguan','tiguan','SUV','SUV-D','ICE','petrol',ARRAY['1.5T 150hp','2.0T 190hp'],NULL,NULL,2024,125000,225000,true),
+(bid,'Touareg','touareg','SUV','SUV-E','ICE','petrol',ARRAY['3.0T V6 340hp','4.0T V8 R 462hp'],NULL,NULL,2018,220000,480000,true),
+(bid,'ID.4','id4','SUV','SUV-C','BEV','electric',ARRAY['EM 174hp 52kWh','EM 204hp 77kWh','EM 299hp GTX dual'],82.0,531,2021,130000,210000,true),
+(bid,'ID.5','id5','SUV','SUV-C','BEV','electric',ARRAY['EM 204hp 77kWh','EM 299hp GTX dual'],82.0,517,2022,145000,220000,true),
+(bid,'ID.7','id7','Sedan','E','BEV','electric',ARRAY['EM 286hp 77kWh','EM 286hp Pro 91kWh','EM 340hp GTX dual'],91.0,700,2023,175000,265000,true),
+(bid,'Amarok','amarok','Pickup','Pickup','ICE','diesel',ARRAY['3.0T V6 Diesel 204hp','3.0T V6 Diesel 272hp'],NULL,NULL,2023,155000,280000,true)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── JAGUAR ──────────────────────────────────────────────────────────────────
+DO $$ DECLARE bid INT; BEGIN SELECT id INTO bid FROM brands WHERE slug = 'jaguar';
+INSERT INTO models (brand_id,name,slug,body_type,segment,powertrain,fuel_type,engine_options,battery_kwh,range_km,year_from,price_aed_min,price_aed_max,export_popular) VALUES
+(bid,'F-PACE','f-pace','SUV','SUV-E','ICE','petrol',ARRAY['2.0T P250','2.0T P300','5.0L V8 SVR 575hp'],NULL,NULL,2021,185000,520000,true),
+(bid,'F-PACE PHEV','f-pace-phev','SUV','SUV-E','PHEV','hybrid',ARRAY['2.0T + EM P400e 404hp'],17.1,53,2021,215000,290000,false),
+(bid,'I-PACE','i-pace','SUV','SUV-D','BEV','electric',ARRAY['EM 400hp AWD dual 90kWh'],90.0,470,2019,175000,250000,false),
+(bid,'F-Type','f-type','Coupe','F','ICE','petrol',ARRAY['2.0T P300','3.0T V6 P450','5.0L V8 P575 R'],NULL,NULL,2022,310000,650000,false)
+ON CONFLICT (brand_id, name) DO NOTHING; END $$;
+
+-- ─── INDEXES ─────────────────────────────────────────────────────────────────
+
+CREATE INDEX IF NOT EXISTS idx_models_brand ON models(brand_id);
+CREATE INDEX IF NOT EXISTS idx_models_powertrain ON models(powertrain);
+CREATE INDEX IF NOT EXISTS idx_models_body_type ON models(body_type);
+CREATE INDEX IF NOT EXISTS idx_models_export ON models(export_popular) WHERE export_popular = true;
+CREATE INDEX IF NOT EXISTS idx_brands_region ON brands(region);
+CREATE INDEX IF NOT EXISTS idx_brands_slug ON brands(slug);
+
+-- ─── SUMMARY ──────────────────────────────────────────────────────────────────
+
+DO $$
+DECLARE
+  brand_count INT;
+  model_count INT;
+  ev_count INT;
+  phev_count INT;
+  reev_count INT;
+  hev_count INT;
+  ice_count INT;
+BEGIN
+  SELECT COUNT(*) INTO brand_count FROM brands WHERE active = true;
+  SELECT COUNT(*) INTO model_count FROM models WHERE active = true;
+  SELECT COUNT(*) INTO ev_count    FROM models WHERE powertrain IN ('BEV','FCEV') AND active = true;
+  SELECT COUNT(*) INTO phev_count  FROM models WHERE powertrain = 'PHEV' AND active = true;
+  SELECT COUNT(*) INTO reev_count  FROM models WHERE powertrain = 'REEV' AND active = true;
+  SELECT COUNT(*) INTO hev_count   FROM models WHERE powertrain IN ('HEV','MHEV') AND active = true;
+  SELECT COUNT(*) INTO ice_count   FROM models WHERE powertrain = 'ICE' AND active = true;
+
+  RAISE NOTICE '=== DubaiAuto Dataset Loaded ===';
+  RAISE NOTICE 'Brands: %  |  Models: %', brand_count, model_count;
+  RAISE NOTICE 'BEV: %  PHEV: %  REEV: %  HEV: %  ICE: %', ev_count, phev_count, reev_count, hev_count, ice_count;
+END $$;

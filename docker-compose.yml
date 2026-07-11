@@ -1,0 +1,287 @@
+version: '3.9'
+
+services:
+  # ─── Frontend ───────────────────────────────────────────────────────────────
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        # Build-time only — must match the values below, since NEXT_PUBLIC_*
+        # gets baked into the static JS bundle at `npm run build`, not read
+        # at container startup. If you change GOOGLE_CLIENT_ID in .env, you
+        # must rebuild this image (`docker compose build web`), a restart
+        # alone will not pick it up.
+        NEXT_PUBLIC_API_URL: http://api:3001/api/v1
+        NEXT_PUBLIC_APP_NAME: DubaiAuto
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    container_name: dubaiauto-web
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      # Used for: SSR fetches + Next.js rewrite destination
+      NEXT_PUBLIC_API_URL: http://api:3001/api/v1
+      NEXT_PUBLIC_APP_NAME: DubaiAuto
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    depends_on:
+      - api
+    networks:
+      - dubaiauto-net
+
+  # ─── Backend API ────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: dubaiauto-api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    ports:
+      - '3001:3001'
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-dubaiauto}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-dubaiauto}
+      REDIS_URL: redis://redis:6379
+      # AI Provider — see .env.example for setup instructions
+      AI_PROVIDER: ${AI_PROVIDER:-anthropic}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      VERTEX_PROJECT_ID: ${VERTEX_PROJECT_ID:-}
+      VERTEX_REGION: ${VERTEX_REGION:-us-east5}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env — see .env.example}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost,http://localhost:3000}
+      # First admin account, bootstrapped automatically on startup — see prisma/seed-admin.ts
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_FULL_NAME: ${ADMIN_FULL_NAME:-Platform Admin}
+      ADMIN_FORCE_RESET: ${ADMIN_FORCE_RESET:-0}
+      # OPTIONAL, empty by default: shared secret that lets the E2E test suite
+      # (robot-tests service below) bypass the auth rate limits it would
+      # otherwise trip by creating many fixture accounts quickly. Leave unset
+      # in any real deployment — see AppThrottlerGuard for the safety notes.
+      TEST_BYPASS_TOKEN: ${TEST_BYPASS_TOKEN:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-placeholder}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-placeholder}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-placeholder}
+      AWS_REGION: ${AWS_REGION:-me-south-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-dubaiauto-vehicles}
+      CDN_BASE_URL: ${CDN_BASE_URL:-http://localhost:3001/static}
+      # Empty by default = Stripe disabled, paid-plan checkout cleanly refuses
+      # instead of pretending to work with a fake key. Set both in .env to
+      # enable real payments; STRIPE_WEBHOOK_SECRET comes from the Stripe
+      # Dashboard webhook endpoint you configure to POST to /api/v1/subscription/webhook/stripe.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # Empty by default = "Sign in with Google" button hides itself on the
+      # frontend and /auth/google cleanly refuses server-side. Set in .env
+      # with the same value as NEXT_PUBLIC_GOOGLE_CLIENT_ID above to enable.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      FRONTEND_URL: http://localhost:3000
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - dubaiauto-net
+    volumes:
+      - uploads_data:/app/uploads
+
+  # ─── PostgreSQL (primary) + TimescaleDB ─────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: dubaiauto-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dubaiauto}
+      POSTGRES_USER: ${POSTGRES_USER:-dubaiauto}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      # Consumed by postgres/00_replication.sh on first init to create the
+      # dedicated replication role used by the standby below.
+      POSTGRES_REPLICA_PASSWORD: ${POSTGRES_REPLICA_PASSWORD:?POSTGRES_REPLICA_PASSWORD must be set in .env}
+    # Enables WAL streaming replication to the standby. A replication slot
+    # (created once by the replica's first pg_basebackup) keeps WAL around
+    # until the standby has consumed it, so the standby never falls
+    # irrecoverably behind even across brief network blips.
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_senders=5
+      - -c
+      - max_replication_slots=5
+      - -c
+      - hot_standby=on
+      - -c
+      - listen_addresses=*
+    ports:
+      # Bound to localhost only — do not expose the database on a public interface.
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/00_replication.sh:/docker-entrypoint-initdb.d/00_replication.sh
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./postgres/02_brands_models.sql:/docker-entrypoint-initdb.d/02_brands_models.sql
+      - ./postgres/03_dealers_uae.sql:/docker-entrypoint-initdb.d/03_dealers_uae.sql
+      - ./postgres/04_real_vehicles_stock.sql:/docker-entrypoint-initdb.d/04_real_vehicles_stock.sql
+      - ./postgres/05_brokers.sql:/docker-entrypoint-initdb.d/05_brokers.sql
+      - ./postgres/06_gcc_countries.sql:/docker-entrypoint-initdb.d/06_gcc_countries.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U dubaiauto']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dubaiauto-net
+
+  # ─── PostgreSQL (streaming read replica / "slave") ──────────────────────────
+  # Hot standby kept in sync via WAL streaming from the primary. Read-only —
+  # useful for offloading reporting/analytics queries and as a warm failover
+  # candidate. NOT a substitute for the backup service below: replication
+  # copies mistakes (a bad DELETE replicates too); backups are the actual
+  # disaster-recovery mechanism.
+  postgres-replica:
+    image: postgres:16-alpine
+    container_name: dubaiauto-postgres-replica
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGUSER: replicator
+      PGPASSWORD: ${POSTGRES_REPLICA_PASSWORD:?POSTGRES_REPLICA_PASSWORD must be set in .env}
+      PRIMARY_HOST: postgres
+      PRIMARY_PORT: 5432
+    entrypoint: ['/bin/sh', '/replica-entrypoint.sh']
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+      - ./postgres/replica-entrypoint.sh:/replica-entrypoint.sh:ro
+    ports:
+      # Read-only replica — localhost only, same rationale as the primary.
+      - '127.0.0.1:5434:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U replicator -d postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - dubaiauto-net
+
+  # ─── Automated backups ───────────────────────────────────────────────────────
+  # Scheduled pg_dump of the PRIMARY with daily/weekly/monthly retention.
+  # Writes to ./backups (bind-mounted, back this up off-host too — a backup
+  # that lives on the same disk as the database is not a real backup).
+  # See postgres/BACKUP_RESTORE.md for restore instructions and the optional
+  # S3 offsite copy.
+  postgres-backup:
+    image: prodrigestivill/postgres-backup-local:16-alpine
+    container_name: dubaiauto-postgres-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-dubaiauto}
+      POSTGRES_USER: ${POSTGRES_USER:-dubaiauto}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      # Keep 7 daily, 4 weekly, 6 monthly dumps by default.
+      SCHEDULE: ${BACKUP_SCHEDULE:-@daily}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
+      BACKUP_KEEP_WEEKS: ${BACKUP_KEEP_WEEKS:-4}
+      BACKUP_KEEP_MONTHS: ${BACKUP_KEEP_MONTHS:-6}
+      HEALTHCHECK_PORT: 8080
+    volumes:
+      - ./backups:/backups
+    networks:
+      - dubaiauto-net
+
+  # ─── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: dubaiauto-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      # Bound to localhost only — Redis has no auth configured by default.
+      - '127.0.0.1:6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - dubaiauto-net
+
+  # ─── Nginx ──────────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: dubaiauto-nginx
+    restart: unless-stopped
+    ports:
+      - '80:80'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    # Lets nginx reach the marketing-automation stack's Caddy container (a
+    # separate docker-compose project, different network) via its host-mapped
+    # port — see nginx.conf's "marketing.dubaiauto.ae" server block.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      web:
+        condition: service_started
+      api:
+        condition: service_healthy
+    networks:
+      - dubaiauto-net
+
+  # ─── End-to-end test suite (Robot Framework) ────────────────────────────────
+  # Runs the full API/security/UI regression suite against this stack through
+  # nginx (the real prod path). Gated behind the `testing` profile so it never
+  # runs on a normal `docker-compose up` — invoke explicitly:
+  #   docker compose --profile testing run --rm \
+  #     -e ADMIN_EMAIL=admin@dubaiauto.ae -e ADMIN_PASSWORD=<your admin password> \
+  #     robot-tests
+  # See robot-tests/README.md for the full guide (CI/CD gating, tag filters,
+  # running against staging instead of local).
+  robot-tests:
+    profiles: ['testing']
+    build:
+      context: ./robot-tests
+      dockerfile: Dockerfile
+    container_name: dubaiauto-robot-tests
+    depends_on:
+      nginx:
+        condition: service_started
+      api:
+        condition: service_healthy
+    environment:
+      BASE_URL: http://nginx/api/v1
+      WEB_URL: http://nginx
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@dubaiauto.ae}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      TEST_BYPASS_TOKEN: ${TEST_BYPASS_TOKEN:-}
+    volumes:
+      - ./robot-tests/results:/opt/robot/results
+    networks:
+      - dubaiauto-net
+
+volumes:
+  postgres_data:
+  postgres_replica_data:
+  redis_data:
+  uploads_data:
+
+networks:
+  dubaiauto-net:
+    driver: bridge

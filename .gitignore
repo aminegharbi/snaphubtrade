@@ -1,0 +1,6 @@
+-e 
+# GCP Service Account credentials
+config/*.json
+!config/README.md
+.env
+.env

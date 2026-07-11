@@ -1,0 +1,1789 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  password_hash   String?
+  full_name       String
+  phone           String?
+  whatsapp        String?
+  avatar_url      String?
+  role            String    @default("buyer")
+  mfa_secret      String?
+  mfa_enabled     Boolean   @default(false)
+  email_verified  Boolean   @default(false)
+  preferred_lang  String    @default("en")
+  last_login_at   DateTime?
+  password_reset_token   String?   @unique
+  password_reset_expires DateTime?
+  google_id       String?   @unique // set when the account was created/linked via Google Sign-In
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  dealers         Dealer[]
+  lead_activities LeadActivity[]
+  price_history   PriceHistory[]
+  dealer_reviews  DealerReview[]
+  favorites       Favorite[]
+
+  @@map("users")
+}
+
+// ─── GCC countries & free zones (multi-country support) ───────────────────────
+// Structured replacement for what used to be a hardcoded UAE-only zones list
+// on the dealers endpoint, and a free-text-only `free_zone_license` field on
+// Dealer. Countries/zones are seeded data (postgres/06_gcc_countries.sql),
+// editable by admin later if needed — not hardcoded in application code.
+model Country {
+  id            String   @id @default(cuid())
+  code          String   @unique @db.VarChar(2)  // ISO 3166-1 alpha-2: AE, SA, QA, BH, KW, OM
+  name          String                            // English name
+  name_ar       String?                           // Arabic name
+  currency_code String   @db.VarChar(3)           // ISO 4217: AED, SAR, QAR, BHD, KWD, OMR
+  phone_prefix  String                            // +971, +966, +974, +973, +965, +968
+  vat_rate      Decimal  @default(0) @db.Decimal(4,3) // e.g. 0.05 = 5% — was hardcoded to UAE's 5% everywhere
+  is_active     Boolean  @default(true)            // allows disabling a market without deleting data
+  created_at    DateTime @default(now())
+
+  free_zones    FreeZone[]
+  dealers       Dealer[]
+  brokers       Broker[]
+
+  @@map("countries")
+}
+
+model FreeZone {
+  id          String   @id @default(cuid())
+  country_id  String
+  name        String                              // e.g. "Jebel Ali Free Zone (JAFZA)"
+  code        String                              // short code, e.g. "jafza"
+  city        String?                             // e.g. "Dubai"
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+
+  country     Country  @relation(fields: [country_id], references: [id])
+  dealers     Dealer[]
+
+  @@unique([country_id, code])
+  @@map("free_zones")
+}
+
+model Dealer {
+  id                  String   @id @default(cuid())
+  user_id             String?
+  company_name        String
+  slug                String   @unique
+  description         String?
+  logo_url            String?
+  cover_url           String?
+  phone               String?
+  whatsapp            String?
+  email               String?
+  website             String?
+  address             String?
+  city                String?
+  country_id          String?
+  free_zone_id        String?
+  free_zone_license   String?  // the license NUMBER — distinct from which free zone (structured, above)
+  languages           String[]
+  export_destinations String[]
+  certifications      String[]
+  verified            Boolean  @default(false)
+  verified_at         DateTime?
+  rating              Decimal  @default(0) @db.Decimal(3,2)
+  review_count        Int      @default(0)
+  subscription_tier   String   @default("free")
+  subscription_ends   DateTime?
+  stripe_customer_id  String?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  user                User?          @relation(fields: [user_id], references: [id])
+  country             Country?       @relation(fields: [country_id], references: [id])
+  free_zone           FreeZone?      @relation(fields: [free_zone_id], references: [id])
+  vehicles            Vehicle[]
+  leads               Lead[]
+  reviews             DealerReview[]
+  owned_shares        VehicleShare[]        @relation("owned_shares")
+  granted_permissions SharePermission[]     @relation("granted_permissions")
+  notifications       Notification[]
+  subscriptions       DealerSubscription[]
+  ai_recommendation_status AiRecommendationStatus[]
+  broker_deals        BrokerDeal[]
+  reports             DealerReport[]
+  reservations        VehicleReservation[]
+  quotes              Quote[]
+  invoices            Invoice[]
+
+  @@index([country_id])
+  @@index([free_zone_id])
+  @@map("dealers")
+}
+
+model DealerReview {
+  id         String   @id @default(cuid())
+  dealer_id  String
+  user_id    String?
+  rating     Int
+  comment    String?
+  created_at DateTime @default(now())
+
+  dealer     Dealer   @relation(fields: [dealer_id], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [user_id], references: [id])
+
+  @@map("dealer_reviews")
+}
+
+model Vehicle {
+  id                  String   @id @default(cuid())
+  dealer_id           String
+  vin                 String?
+  plate_number        String?
+  stock_quantity      Int      @default(1)
+  sold_units          Int      @default(0)
+  specs_origin        String   @default("GCC")
+  make                String
+  model               String
+  year                Int
+  generation          String?
+  trim                String?
+  body_type           String?
+  fuel_type           String?
+  transmission        String?
+  engine              String?
+  horsepower          Int?
+  torque              Int?
+  doors               Int?
+  seats               Int?
+  mileage_km          Int      @default(0)
+  color_exterior      String?
+  color_interior      String?
+  wheels              String?
+  country_origin      String?
+  specs               Json     @default("{}")
+  features            String[]
+  price_aed           Decimal  @db.Decimal(12,2)
+  price_min_aed       Decimal? @db.Decimal(12,2)
+  price_suggested_aed Decimal? @db.Decimal(12,2)
+  // The actual currency this listing's price is denominated in — set from the
+  // dealer's country at creation time (vehicles.service.ts). The `_aed`
+  // column names are now historical/legacy (kept for schema stability) —
+  // always read `currency` to know the real unit, never assume AED.
+  currency            String   @default("AED")
+  negotiable          Boolean  @default(true)
+  status              String   @default("available")
+  export_eligible     Boolean  @default(false)
+  title               String?
+  description         String?
+  seo_keywords        String?
+  ai_confidence       Decimal? @db.Decimal(4,3)
+  ai_raw_result       Json?
+  duplicate_hash      String?
+  view_count          Int      @default(0)
+  favorite_count      Int      @default(0)
+  es_indexed_at       DateTime?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  dealer          Dealer         @relation(fields: [dealer_id], references: [id], onDelete: Cascade)
+  vehicle_images  VehicleImage[]
+  price_history   PriceHistory[]
+  leads           Lead[]
+  promotions      Promotion[]
+  favorites         Favorite[]
+  shares            VehicleShare[]
+  timeline          VehicleTimeline[]
+  collaboration_msgs CollaborationMessage[]
+  qr_code           VehicleQrCode?
+  stock_transactions StockTransaction[]
+  valuations         VehicleValuation[]
+  reservations        VehicleReservation[]
+  quotes             Quote[]
+  invoices           Invoice[]
+
+  @@map("vehicles")
+}
+
+model VehicleImage {
+  id          String   @id @default(cuid())
+  vehicle_id  String
+  s3_key      String
+  cdn_url     String?
+  thumb_url   String?
+  is_primary  Boolean  @default(false)
+  position    Int      @default(0)
+  created_at  DateTime @default(now())
+
+  vehicle     Vehicle  @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+
+  @@map("vehicle_images")
+}
+
+model PriceHistory {
+  id          String   @id @default(cuid())
+  vehicle_id  String
+  price_aed   Decimal  @db.Decimal(12,2)
+  changed_by  String?
+  changed_at  DateTime @default(now())
+
+  vehicle     Vehicle  @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+  user        User?    @relation(fields: [changed_by], references: [id])
+
+  @@map("price_history")
+}
+
+model Lead {
+  id              String   @id @default(cuid())
+  dealer_id       String
+  vehicle_id      String?
+  buyer_name      String?
+  buyer_email     String?
+  buyer_phone     String?
+  buyer_whatsapp  String?
+  stage           String   @default("new")
+  channel         String   @default("website")
+  notes           String?
+  offer_price     Decimal? @db.Decimal(12,2)
+  source_url      String?
+  // Dealer response to this request (Accept / Counter / Reject) — set once the
+  // dealer acts on the buyer's request; keeps the original offer_price intact
+  // as the buyer's ask, and records the dealer's side separately.
+  dealer_decision      String?   // accepted | rejected | countered
+  dealer_counter_price Decimal?  @db.Decimal(12,2)
+  dealer_response_note String?
+  responded_at         DateTime?
+  responded_by         String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  dealer          Dealer        @relation(fields: [dealer_id], references: [id], onDelete: Cascade)
+  vehicle         Vehicle?      @relation(fields: [vehicle_id], references: [id])
+  activities      LeadActivity[]
+
+  @@map("leads")
+}
+
+model LeadActivity {
+  id          String   @id @default(cuid())
+  lead_id     String
+  type        String
+  note        String?
+  created_by  String?
+  created_at  DateTime @default(now())
+
+  lead        Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  user        User?    @relation(fields: [created_by], references: [id])
+
+  @@map("lead_activities")
+}
+
+model Promotion {
+  id              String   @id @default(cuid())
+  dealer_id       String?
+  vehicle_id      String
+  type            String   @default("price_reduction")
+  original_price  Decimal  @db.Decimal(12,2)
+  promo_price     Decimal  @db.Decimal(12,2)
+  label           String?
+  starts_at       DateTime @default(now())
+  ends_at         DateTime?
+  active          Boolean  @default(true)
+  created_at      DateTime @default(now())
+
+  vehicle         Vehicle  @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+
+  @@map("promotions")
+}
+
+model Favorite {
+  user_id    String
+  vehicle_id String
+  created_at DateTime @default(now())
+
+  user       User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  vehicle    Vehicle @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, vehicle_id])
+  @@map("favorites")
+}
+
+model VehicleShare {
+  id              String   @id @default(cuid())
+  vehicle_id      String
+  owner_dealer_id String
+  visibility      String   @default("private")
+  group_id        String?
+  active          Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  vehicle         Vehicle           @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+  owner           Dealer            @relation("owned_shares", fields: [owner_dealer_id], references: [id], onDelete: Cascade)
+  permissions     SharePermission[]
+  broker_permissions BrokerSharePermission[]
+
+  @@map("vehicle_shares")
+}
+
+model BrokerSharePermission {
+  // Broker-facing counterpart of SharePermission — kept as its own table
+  // (rather than making SharePermission.dealer_id nullable) so the existing
+  // dealer-to-dealer sharing flow is completely untouched. Same permission
+  // shape (can_view/can_propose/can_reserve/can_transfer/can_negotiate) so a
+  // dealer can extend the exact same controls to brokers in their network.
+  id             String    @id @default(cuid())
+  share_id       String
+  broker_id      String
+  can_view       Boolean   @default(true)
+  can_propose    Boolean   @default(false)
+  can_reserve    Boolean   @default(false)
+  can_transfer   Boolean   @default(false)
+  can_negotiate  Boolean   @default(false)
+  starts_at      DateTime  @default(now())
+  ends_at        DateTime?
+  revoked_at     DateTime?
+  revoked_by     String?
+  created_at     DateTime  @default(now())
+
+  share          VehicleShare @relation(fields: [share_id], references: [id], onDelete: Cascade)
+  broker         Broker       @relation(fields: [broker_id], references: [id], onDelete: Cascade)
+
+  @@unique([share_id, broker_id])
+  @@map("broker_share_permissions")
+}
+
+model SharePermission {
+  id             String    @id @default(cuid())
+  share_id       String
+  dealer_id      String
+  can_view       Boolean   @default(true)
+  can_propose    Boolean   @default(false)
+  can_reserve    Boolean   @default(false)
+  can_transfer   Boolean   @default(false)
+  can_negotiate  Boolean   @default(false)
+  starts_at      DateTime  @default(now())
+  ends_at        DateTime?
+  revoked_at     DateTime?
+  revoked_by     String?
+  created_at     DateTime  @default(now())
+
+  share          VehicleShare @relation(fields: [share_id], references: [id], onDelete: Cascade)
+  dealer         Dealer       @relation("granted_permissions", fields: [dealer_id], references: [id], onDelete: Cascade)
+
+  @@unique([share_id, dealer_id])
+  @@map("share_permissions")
+}
+
+model DealerGroup {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  created_by  String?
+  created_at  DateTime @default(now())
+
+  members     DealerGroupMember[]
+
+  @@map("dealer_groups")
+}
+
+model DealerGroupMember {
+  group_id  String
+  dealer_id String
+  role      String   @default("member")
+  joined_at DateTime @default(now())
+
+  group     DealerGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
+
+  @@id([group_id, dealer_id])
+  @@map("dealer_group_members")
+}
+
+model VehicleTimeline {
+  id          String   @id @default(cuid())
+  vehicle_id  String
+  event_type  String
+  event_data  Json     @default("{}")
+  actor_id    String?
+  actor_type  String   @default("dealer")
+  note        String?
+  occurred_at DateTime @default(now())
+
+  vehicle     Vehicle  @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+
+  @@map("vehicle_timeline")
+}
+
+model CollaborationMessage {
+  id              String    @id @default(cuid())
+  vehicle_id      String
+  from_dealer_id  String?
+  to_dealer_id    String?
+  from_broker_id  String?
+  to_broker_id    String?
+  msg_type        String
+  content         String?
+  offer_price_aed Decimal?  @db.Decimal(12,2)
+  status          String    @default("pending")
+  expires_at      DateTime?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  vehicle         Vehicle   @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+
+  @@map("collaboration_messages")
+}
+
+model ScanEvent {
+  id           String    @id @default(cuid())
+  vehicle_id   String?
+  dealer_id    String?
+  scan_type    String
+  scan_data    String?
+  action_taken String?
+  source       String    @default("mobile")
+  lat          Decimal?  @db.Decimal(10,7)
+  lng          Decimal?  @db.Decimal(10,7)
+  scanned_at   DateTime  @default(now())
+
+  @@map("scan_events")
+}
+
+model VehicleQrCode {
+  id         String   @id @default(cuid())
+  vehicle_id String   @unique
+  qr_token   String   @unique @default(cuid())
+  qr_url     String?
+  created_at DateTime @default(now())
+
+  vehicle    Vehicle  @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+
+  @@map("vehicle_qr_codes")
+}
+
+model Notification {
+  id         String    @id @default(cuid())
+  dealer_id  String?
+  broker_id  String?
+  type       String
+  category   String    @default("general")
+  // 'reservation' | 'shared_stock' | 'sale' | 'lead' | 'broker_deal' | 'general'
+  title      String
+  body       String?
+  data       Json      @default("{}")
+  read_at    DateTime?
+  created_at DateTime  @default(now())
+
+  dealer     Dealer?   @relation(fields: [dealer_id], references: [id], onDelete: Cascade)
+  broker     Broker?   @relation(fields: [broker_id], references: [id], onDelete: Cascade)
+
+  @@index([dealer_id, read_at])
+  @@index([broker_id, read_at])
+  @@map("notifications")
+}
+
+// ─── SaaS Subscription System ────────────────────────────────────────────────
+
+model SubscriptionPlan {
+  id                       String   @id @default(cuid())
+  name                     String
+  slug                     String   @unique
+  description              String?
+  tagline                  String?
+  color                    String   @default("#6B7280")
+  badge                    String?
+  is_active                Boolean  @default(true)
+  is_visible               Boolean  @default(true)
+  sort_order               Int      @default(0)
+  price_monthly            Decimal  @default(0)  @db.Decimal(10,2)
+  price_quarterly          Decimal  @default(0)  @db.Decimal(10,2)
+  price_yearly             Decimal  @default(0)  @db.Decimal(10,2)
+  currency                 String   @default("AED")
+  trial_days               Int      @default(0)
+  stripe_price_monthly_id  String?
+  stripe_price_yearly_id   String?
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  features      PlanFeature[]
+  limits        PlanLimit[]
+  subscriptions DealerSubscription[]
+
+  @@map("subscription_plans")
+}
+
+model SubscriptionFeature {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  icon        String?
+  category    String   @default("general")
+  is_active   Boolean  @default(true)
+  is_premium  Boolean  @default(false)
+  is_visible  Boolean  @default(true)
+  sort_order  Int      @default(0)
+  created_at  DateTime @default(now())
+
+  plan_features PlanFeature[]
+
+  @@map("subscription_features")
+}
+
+model PlanFeature {
+  id          String   @id @default(cuid())
+  plan_id     String
+  feature_id  String
+  enabled     Boolean  @default(true)
+  limit_value Int?
+  created_at  DateTime @default(now())
+
+  plan    SubscriptionPlan    @relation(fields: [plan_id], references: [id], onDelete: Cascade)
+  feature SubscriptionFeature @relation(fields: [feature_id], references: [id], onDelete: Cascade)
+
+  @@unique([plan_id, feature_id])
+  @@map("plan_features")
+}
+
+model PlanLimit {
+  id          String @id @default(cuid())
+  plan_id     String
+  limit_key   String
+  limit_name  String
+  limit_value Int    @default(0)
+  created_at  DateTime @default(now())
+
+  plan SubscriptionPlan @relation(fields: [plan_id], references: [id], onDelete: Cascade)
+
+  @@unique([plan_id, limit_key])
+  @@map("plan_limits")
+}
+
+model DealerSubscription {
+  id                     String    @id @default(cuid())
+  dealer_id              String
+  plan_id                String
+  status                 String    @default("active")
+  billing_cycle          String    @default("monthly")
+  current_period_start   DateTime  @default(now())
+  current_period_end     DateTime?
+  trial_start            DateTime?
+  trial_end              DateTime?
+  cancelled_at           DateTime?
+  cancel_reason          String?
+  auto_renew             Boolean   @default(true)
+  stripe_subscription_id String?
+  stripe_customer_id     String?
+  coupon_id              String?
+  discount_pct           Int       @default(0)
+  grace_period_ends      DateTime?
+  created_at             DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
+
+  dealer   Dealer           @relation(fields: [dealer_id], references: [id], onDelete: Cascade)
+  plan     SubscriptionPlan @relation(fields: [plan_id], references: [id])
+  invoices SubscriptionInvoice[]
+  history  SubscriptionHistory[]
+
+  @@map("dealer_subscriptions")
+}
+
+model SubscriptionInvoice {
+  id              String    @id @default(cuid())
+  subscription_id String
+  dealer_id       String
+  invoice_number  String    @unique
+  status          String    @default("draft")
+  amount_subtotal Decimal   @db.Decimal(10,2)
+  amount_discount Decimal   @default(0) @db.Decimal(10,2)
+  amount_tax      Decimal   @default(0) @db.Decimal(10,2)
+  amount_total    Decimal   @db.Decimal(10,2)
+  currency        String    @default("AED")
+  billing_cycle   String?
+  period_start    DateTime?
+  period_end      DateTime?
+  paid_at         DateTime?
+  due_date        DateTime?
+  stripe_invoice_id String?
+  pdf_url         String?
+  created_at      DateTime  @default(now())
+
+  subscription DealerSubscription   @relation(fields: [subscription_id], references: [id])
+  payments     SubscriptionPayment[]
+
+  @@map("subscription_invoices")
+}
+
+model SubscriptionPayment {
+  id                 String    @id @default(cuid())
+  invoice_id         String
+  dealer_id          String
+  amount             Decimal   @db.Decimal(10,2)
+  currency           String    @default("AED")
+  status             String    @default("pending")
+  gateway            String    @default("stripe")
+  gateway_payment_id String?
+  gateway_response   Json      @default("{}")
+  failure_reason     String?
+  refunded_at        DateTime?
+  created_at         DateTime  @default(now())
+
+  invoice SubscriptionInvoice @relation(fields: [invoice_id], references: [id])
+
+  @@map("subscription_payments")
+}
+
+model SubscriptionCoupon {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  name            String?
+  discount_type   String    @default("percentage")
+  discount_value  Decimal   @db.Decimal(10,2)
+  max_uses        Int?
+  current_uses    Int       @default(0)
+  valid_from      DateTime  @default(now())
+  valid_until     DateTime?
+  min_amount      Decimal   @default(0) @db.Decimal(10,2)
+  applicable_plans String[]
+  is_active       Boolean   @default(true)
+  created_at      DateTime  @default(now())
+
+  @@map("subscription_coupons")
+}
+
+model SubscriptionUsage {
+  id           String   @id @default(cuid())
+  dealer_id    String
+  usage_key    String
+  period_year  Int
+  period_month Int
+  value        Int      @default(0)
+  reset_at     DateTime?
+  updated_at   DateTime @updatedAt
+
+  @@unique([dealer_id, usage_key, period_year, period_month])
+  @@map("subscription_usage")
+}
+
+model SubscriptionHistory {
+  id              String   @id @default(cuid())
+  dealer_id       String
+  subscription_id String?
+  event_type      String
+  from_plan_id    String?
+  to_plan_id      String?
+  metadata        Json     @default("{}")
+  created_at      DateTime @default(now())
+
+  subscription DealerSubscription? @relation(fields: [subscription_id], references: [id])
+
+  @@map("subscription_history")
+}
+
+model AiCredit {
+  id               String    @id @default(cuid())
+  dealer_id        String    @unique
+  credits_total    Int       @default(0)
+  credits_used     Int       @default(0)
+  credits_reset_at DateTime?
+  reset_period     String    @default("monthly")
+  updated_at       DateTime  @updatedAt
+
+  @@map("ai_credits")
+}
+
+model StockTransaction {
+  id              String   @id @default(cuid())
+  vehicle_id      String
+  dealer_id       String?
+  txn_type        String
+  quantity        Int      @default(1)
+  quantity_before Int      @default(0)
+  quantity_after  Int      @default(0)
+  note            String?
+  actor_id        String?
+  source          String   @default("manual")
+  occurred_at     DateTime @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+
+  @@map("stock_transactions")
+}
+
+// ─── Catalog tables (managed by raw SQL, declared here to prevent drop) ──────
+
+
+// ─── Broker & Affiliate System ────────────────────────────────────────────────
+
+model Broker {
+  id              String   @id @default(cuid())
+  user_id         String?
+  full_name       String
+  email           String   @unique
+  phone           String?
+  whatsapp        String?
+  company_name    String?
+  broker_type     String   @default("independent")
+  affiliate_code  String   @unique
+  tier            String   @default("Starter")
+  commission_rate Decimal  @default(0.015) @db.Decimal(4,3)
+  status          String   @default("pending")
+  country         String?  // free-text legacy field — kept for backward compatibility
+  country_id      String?  // structured GCC country — use this for new logic/filtering
+  city            String?
+  languages       String[]
+  specialties     String[]
+  referred_by     String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  country_ref        Country?             @relation(fields: [country_id], references: [id])
+  deals              BrokerDeal[]
+  referrals          BrokerReferral[]
+  reservations       VehicleReservation[]
+  notifications      Notification[]
+  affiliatePayments  AffiliatePayment[]
+  shared_inventory_permissions BrokerSharePermission[]
+
+  @@index([country_id])
+  @@map("brokers")
+}
+
+model BrokerDeal {
+  id              String    @id @default(cuid())
+  broker_id       String
+  dealer_id       String
+  vehicle_id      String?
+  buyer_name      String?
+  buyer_country   String?
+  deal_price_aed  Decimal   @db.Decimal(12,2)
+  // See Vehicle.currency comment — same rationale, added here since BrokerDeal
+  // previously had no currency field at all (hardcoded 'AED' in application code).
+  currency        String    @default("AED")
+  commission_rate Decimal   @db.Decimal(4,3)
+  commission_aed  Decimal   @db.Decimal(10,2)
+  status          String    @default("pending")
+  paid_at         DateTime?
+  notes           String?
+  created_at      DateTime  @default(now())
+
+  broker  Broker  @relation(fields: [broker_id], references: [id], onDelete: Cascade)
+  dealer  Dealer  @relation(fields: [dealer_id], references: [id], onDelete: Cascade)
+
+  @@map("broker_deals")
+}
+
+model BrokerReferral {
+  id            String   @id @default(cuid())
+  broker_id     String
+  referred_type String
+  referred_id   String?
+  referral_code String?
+  reward_aed    Decimal  @default(0) @db.Decimal(10,2)
+  recurring_pct Decimal  @default(0) @db.Decimal(4,3)
+  status        String   @default("pending")
+  created_at    DateTime @default(now())
+
+  broker Broker @relation(fields: [broker_id], references: [id], onDelete: Cascade)
+
+  @@map("broker_referrals")
+}
+
+// ─── Feature Flags ────────────────────────────────────────────────────────────
+
+model FeatureFlag {
+  id            String    @id @default(cuid())
+  key           String    @unique
+  name          String
+  description   String?
+  category      String    @default("general")
+  icon          String?
+  is_enabled    Boolean   @default(false)
+  rollout_pct   Int       @default(0)
+  target_plans  String[]
+  target_roles  String[]
+  target_zones  String[]
+  enabled_at    DateTime?
+  scheduled_on  DateTime?
+  scheduled_off DateTime?
+  tags          String[]
+  notes         String?
+  created_by    String?
+  updated_by    String?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  logs FeatureFlagLog[]
+
+  @@map("feature_flags")
+}
+
+model FeatureFlagLog {
+  id         String   @id @default(cuid())
+  flag_id    String
+  flag_key   String
+  action     String
+  old_value  Json?
+  new_value  Json?
+  actor      String?
+  created_at DateTime @default(now())
+
+  flag FeatureFlag @relation(fields: [flag_id], references: [id], onDelete: Cascade)
+
+  @@map("feature_flag_logs")
+}
+
+model DealerReport {
+  id                  String   @id @default(cuid())
+  dealer_id           String
+  report_type         String   @default("weekly")
+  week_start          DateTime @db.Date
+  week_end            DateTime @db.Date
+  status              String   @default("generating")
+  total_units         Int      @default(0)
+  available_units     Int      @default(0)
+  sold_this_week      Int      @default(0)
+  total_views         Int      @default(0)
+  avg_price_aed       Decimal? @db.Decimal(12,2)
+  market_avg_price    Decimal? @db.Decimal(12,2)
+  price_position      String?
+  price_diff_pct      Decimal? @db.Decimal(5,2)
+  ai_summary          String?
+  ai_recommendations  Json     @default("[]")
+  ai_alerts           Json     @default("[]")
+  market_data         Json     @default("{}")
+  competitor_data     Json     @default("[]")
+  generated_at        DateTime?
+  created_at          DateTime @default(now())
+
+  dealer Dealer @relation(fields: [dealer_id], references: [id], onDelete: Cascade)
+
+  @@map("dealer_reports")
+}
+
+model VehicleValuation {
+  id                    String   @id @default(cuid())
+  vehicle_id            String?
+  make                  String
+  model                 String
+  year                  Int
+  trim                  String?
+  mileage_km            Int      @default(0)
+  estimated_value_aed   Decimal  @db.Decimal(12,2)
+  value_min_aed         Decimal? @db.Decimal(12,2)
+  value_max_aed         Decimal? @db.Decimal(12,2)
+  confidence_score      Int      @default(85)
+  deal_rating           String?
+  deal_score            Int?
+  market_demand         String?
+  demand_score          Int?
+  avg_days_to_sell      Int?
+  price_trend_pct       Decimal? @db.Decimal(5,2)
+  price_trend_direction String?
+  market_score          Int?
+  investment_score      Int?
+  dealer_confidence     Int?
+  export_score          Int?
+  comparable_count      Int      @default(0)
+  comparable_sources    String[]
+  ai_reasoning          String?
+  ai_strengths          Json     @default("[]")
+  ai_risks              Json     @default("[]")
+  computed_at           DateTime @default(now())
+  expires_at            DateTime @default(dbgenerated("(now() + interval '24 hours')"))
+  is_stale              Boolean  @default(false)
+
+  vehicle Vehicle? @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+
+  @@map("vehicle_valuations")
+}
+
+model ValuationConfig {
+  id                      String   @id @default("default")
+  weight_mileage          Decimal  @default(0.20) @db.Decimal(4,3)
+  weight_year             Decimal  @default(0.15) @db.Decimal(4,3)
+  weight_market_demand    Decimal  @default(0.25) @db.Decimal(4,3)
+  weight_comparable_sales Decimal  @default(0.30) @db.Decimal(4,3)
+  weight_condition        Decimal  @default(0.10) @db.Decimal(4,3)
+  depreciation_year1      Decimal  @default(0.15) @db.Decimal(4,3)
+  depreciation_year2      Decimal  @default(0.12) @db.Decimal(4,3)
+  depreciation_year3      Decimal  @default(0.10) @db.Decimal(4,3)
+  depreciation_year4plus  Decimal  @default(0.08) @db.Decimal(4,3)
+  mileage_baseline_km     Int      @default(15000)
+  mileage_penalty_pct     Decimal  @default(0.02) @db.Decimal(4,3)
+  excellent_deal_below    Decimal  @default(0.88) @db.Decimal(4,3)
+  good_deal_below         Decimal  @default(0.95) @db.Decimal(4,3)
+  fair_price_below        Decimal  @default(1.05) @db.Decimal(4,3)
+  above_market_below      Decimal  @default(1.15) @db.Decimal(4,3)
+  active_currencies       String[] @default(["AED","USD","EUR","GBP","NGN"])
+  active_countries        String[] @default(["UAE","Nigeria","Ghana","Kenya","UK","France"])
+  updated_at              DateTime @updatedAt
+
+  @@map("valuation_config")
+}
+
+model AlertSubscription {
+  id             String   @id @default(cuid())
+  user_id        String?
+  email          String
+  phone          String?
+  alert_type     String
+  filters        Json     @default("{}")
+  channel        String[] @default(["email"])
+  is_active      Boolean  @default(true)
+  last_triggered DateTime?
+  trigger_count  Int      @default(0)
+  created_at     DateTime @default(now())
+
+  notifications AlertNotification[]
+
+  @@map("alert_subscriptions")
+}
+
+model AlertNotification {
+  id         String   @id @default(cuid())
+  alert_id   String
+  vehicle_id String?
+  title      String
+  message    String?
+  channel    String   @default("email")
+  status     String   @default("pending")
+  sent_at    DateTime?
+  created_at DateTime @default(now())
+
+  alert AlertSubscription @relation(fields: [alert_id], references: [id], onDelete: Cascade)
+
+  @@map("alert_notifications")
+}
+
+// ─── AI Market Analysis — Dubizzle / DubiCars competitor intelligence ─────────
+
+model MarketAnalysisConfig {
+  id                     String    @id @default("default")
+  enabled                Boolean   @default(true)
+  sources                Json      @default("[\"dubizzle\",\"dubicars\"]")
+  auto_refresh_enabled   Boolean   @default(true)
+  refresh_interval_hours Int       @default(24)
+  min_confidence_pct     Int       @default(60)
+  tracked_models         Json      @default("[]")
+  last_refreshed_at      DateTime?
+  last_refresh_status    String    @default("never_run")
+  last_refresh_summary   String?
+  ai_model               String    @default("claude-sonnet-4-6")
+  updated_by             String?
+  updated_at             DateTime  @updatedAt
+
+  @@map("market_analysis_config")
+}
+
+model MarketCompetitorData {
+  id              String    @id @default(cuid())
+  make            String
+  model           String
+  year            Int
+  source          String
+  avg_price_aed   Decimal   @db.Decimal(12,2)
+  min_price_aed   Decimal?  @db.Decimal(12,2)
+  max_price_aed   Decimal?  @db.Decimal(12,2)
+  listing_count   Int       @default(0)
+  avg_days_listed Int?
+  demand_level    String?
+  trend_pct       Decimal?  @db.Decimal(5,2)
+  confidence_pct  Int       @default(70)
+  source_url      String?
+  raw_ai_notes    String?
+  fetched_at      DateTime  @default(now())
+  expires_at      DateTime  @default(dbgenerated("(now() + interval '7 days')"))
+  is_active       Boolean   @default(true)
+
+  @@unique([make, model, year, source], name: "make_model_year_source")
+  @@map("market_competitor_data")
+}
+
+model MarketAnalysisRun {
+  id               String    @id @default(cuid())
+  triggered_by     String?
+  status           String    @default("running")
+  models_requested Int       @default(0)
+  models_updated   Int       @default(0)
+  models_failed    Int       @default(0)
+  sources_used     Json      @default("[]")
+  summary          String?
+  error_detail     String?
+  started_at       DateTime  @default(now())
+  completed_at     DateTime?
+
+  @@map("market_analysis_runs")
+}
+
+// ─── Vehicle Reservations (Broker booking system) ──────────────────────────────
+
+model VehicleReservation {
+  id              String    @id @default(cuid())
+  vehicle_id      String
+  dealer_id       String
+  broker_id       String?
+  reserved_by_name String?
+  reserved_by_contact String?
+  status          String    @default("active")
+  // active | expired | cancelled | converted (became a sale)
+  note            String?
+  expires_at      DateTime
+  cancelled_at    DateTime?
+  converted_at    DateTime?
+  created_at      DateTime  @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+  dealer  Dealer  @relation(fields: [dealer_id], references: [id], onDelete: Cascade)
+  broker  Broker? @relation(fields: [broker_id], references: [id], onDelete: SetNull)
+
+  @@map("vehicle_reservations")
+}
+
+// ─── Active Sessions (presence tracking for marketplace) ───────────────────────
+
+model ActiveSession {
+  id            String   @id @default(cuid())
+  session_token String   @unique
+  profile_type  String
+  // broker | dealer | buyer | admin
+  profile_id    String?
+  // broker.id, dealer.id, or user.id depending on profile_type
+  display_name  String
+  avatar_label  String?
+  email         String?
+  current_page  String?
+  last_seen_at  DateTime @default(now())
+  created_at    DateTime @default(now())
+
+  @@index([profile_type, last_seen_at])
+  @@map("active_sessions")
+}
+
+// ─── Revenue OS — Executive Dashboard ────────────────────────────────────────
+
+model ExecTask {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  priority    String   @default("medium") // low | medium | high | urgent
+  status      String   @default("todo")   // todo | in_progress | done
+  due_date    DateTime?
+  assignee    String?  // admin user name
+  category    String   @default("general") // sales | marketing | ops | finance
+  created_by  String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+}
+
+model ExecMeeting {
+  id          String   @id @default(cuid())
+  title       String
+  attendees   String[]
+  date        DateTime
+  duration_min Int     @default(30)
+  type        String   @default("internal") // internal | investor | dealer | partner
+  notes       String?
+  link        String?
+  status      String   @default("scheduled") // scheduled | completed | cancelled
+  created_at  DateTime @default(now())
+}
+
+model KpiSnapshot {
+  id          String   @id @default(cuid())
+  date        DateTime @default(now())
+  mrr_aed     Decimal  @default(0) @db.Decimal(14,2)
+  arr_aed     Decimal  @default(0) @db.Decimal(14,2)
+  active_dealers    Int @default(0)
+  new_dealers_month Int @default(0)
+  total_vehicles    Int @default(0)
+  deals_month       Int @default(0)
+  revenue_month_aed Decimal @default(0) @db.Decimal(14,2)
+  health_score      Int @default(0)
+  @@unique([date])
+}
+
+// ─── Revenue OS — Module 2: Email Marketing ───────────────────────────────────
+
+model EmailCampaign {
+  id              String   @id @default(cuid())
+  name            String
+  subject_a       String
+  subject_b       String?                        // A/B test
+  preview_text    String?
+  from_name       String   @default("DubaiAuto")
+  from_email      String   @default("noreply@dubaiauto.ae")
+  reply_to        String?
+  segment         String   @default("all_dealers") // all_dealers|active_dealers|inactive_dealers|all_brokers|all_buyers|all|custom
+  custom_filters  Json?    // used when segment='custom' — see EmailService.resolveAdvancedFilters
+  blocks          Json     @default("[]")          // EmailBlock[]
+  html_body       String?  @db.Text
+  status          String   @default("draft")       // draft|scheduled|sending|sent|paused|cancelled
+  type            String   @default("one_off")     // one_off|recurring|automated
+  ab_test         Boolean  @default(false)
+  ab_split_pct    Int      @default(50)            // % to variant A
+  ab_winner       String?                          // a|b|null
+  scheduled_at    DateTime?
+  sent_at         DateTime?
+  total_recipients Int     @default(0)
+  tags            String[]
+  created_by      String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  sends           EmailSend[]
+}
+
+model EmailAutomation {
+  // Recurring/triggered flows: weekly reports, welcome emails, re-engagement.
+  id           String    @id @default(cuid())
+  key          String    @unique // 'weekly_dealer_report' | 'weekly_broker_report' | 're_engage_inactive' | ...
+  name         String
+  trigger_type String    // signup | scheduled_weekly | scheduled_monthly | inactivity_days
+  enabled      Boolean   @default(true)
+  last_run_at  DateTime?
+  config       Json?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+
+  @@map("email_automations")
+}
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String   @default("general")  // dealer|broker|marketing|transactional|newsletter
+  thumbnail   String?
+  blocks      Json     @default("[]")
+  is_system   Boolean  @default(false)
+  usage_count Int      @default(0)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+}
+
+model EmailSend {
+  id            String   @id @default(cuid())
+  campaign_id   String
+  campaign      EmailCampaign @relation(fields:[campaign_id], references:[id], onDelete:Cascade)
+  recipient_email String
+  recipient_name  String?
+  subject       String
+  variant       String   @default("a")  // a|b
+  status        String   @default("queued") // queued|sent|bounced|failed
+  provider_id   String?                     // ID from Resend/SendGrid
+  tracking_id   String   @unique @default(cuid())
+  opened        Boolean  @default(false)
+  opened_at     DateTime?
+  open_count    Int      @default(0)
+  clicked       Boolean  @default(false)
+  clicked_at    DateTime?
+  click_count   Int      @default(0)
+  bounced       Boolean  @default(false)
+  bounce_reason String?
+  unsubscribed  Boolean  @default(false)
+  sent_at       DateTime?
+  created_at    DateTime @default(now())
+}
+
+model EmailUnsubscribe {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  reason     String?
+  created_at DateTime @default(now())
+}
+
+model EmailLink {
+  id          String   @id @default(cuid())
+  campaign_id String
+  tracking_id String
+  original_url String
+  link_id     String
+  clicks      Int      @default(0)
+  created_at  DateTime @default(now())
+}
+
+// ─── Revenue OS — Module 3: CRM + Module 4: Sales Pipeline ───────────────────
+
+model CrmContact {
+  id              String    @id @default(cuid())
+  type            String    @default("lead")       // lead|dealer|broker|buyer|partner|prospect
+  full_name       String
+  email           String?
+  phone           String?
+  whatsapp        String?
+  company         String?
+  country         String?
+  city            String?
+  source          String?                           // website|referral|cold_outreach|social|event|inbound
+  owner           String?                           // sales agent
+  score           Int       @default(0)            // 0–100 lead score
+  tags            String[]
+  status          String    @default("new")        // new|active|qualified|unqualified|customer|churned
+  last_activity_at DateTime?
+  notes           String?
+  ref_dealer_id   String?
+  ref_broker_id   String?
+  ref_user_id     String?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  activities      CrmActivity[]
+  deals           CrmDeal[]
+}
+
+model CrmDeal {
+  id              String    @id @default(cuid())
+  contact_id      String
+  contact         CrmContact @relation(fields:[contact_id], references:[id], onDelete:Cascade)
+  title           String
+  value_aed       Decimal   @default(0) @db.Decimal(12,2)
+  stage           String    @default("lead")       // lead|qualified|demo_scheduled|demo_completed|negotiation|trial|won|lost
+  probability_pct Int       @default(10)
+  expected_close  DateTime?
+  owner           String?
+  source          String?
+  notes           String?
+  lost_reason     String?
+  won_at          DateTime?
+  lost_at         DateTime?
+  plan_interest   String?                          // which subscription plan
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+}
+
+model CrmActivity {
+  id           String    @id @default(cuid())
+  contact_id   String
+  contact      CrmContact @relation(fields:[contact_id], references:[id], onDelete:Cascade)
+  type         String                              // call|meeting|email|note|task|whatsapp|demo
+  title        String
+  body         String?
+  direction    String?                             // inbound|outbound
+  duration_min Int?
+  outcome      String?                             // answered|voicemail|no_answer|positive|negative|scheduled
+  scheduled_at DateTime?
+  completed    Boolean   @default(false)
+  completed_at DateTime?
+  created_by   String?
+  created_at   DateTime  @default(now())
+}
+
+// ─── Module 7: Push Notifications ────────────────────────────────────────────
+model PushCampaign {
+  id           String    @id @default(cuid())
+  title        String
+  body         String
+  image_url    String?
+  action_url   String?
+  action_label String?
+  type         String    @default("announcement")  // announcement|price_drop|promotion|update|news|alert
+  audience     String    @default("all")            // all|dealers|brokers|buyers
+  status       String    @default("draft")          // draft|scheduled|sending|sent
+  scheduled_at DateTime?
+  sent_at      DateTime?
+  total_sent   Int       @default(0)
+  total_clicked Int      @default(0)
+  created_by   String?
+  created_at   DateTime  @default(now())
+  sends        PushSend[]
+}
+
+model PushSend {
+  id          String       @id @default(cuid())
+  campaign_id String
+  campaign    PushCampaign @relation(fields:[campaign_id], references:[id], onDelete:Cascade)
+  recipient_type String    // dealer|broker|user
+  recipient_id   String
+  notification_id String?  // link to Notification record
+  clicked     Boolean      @default(false)
+  clicked_at  DateTime?
+  created_at  DateTime     @default(now())
+}
+
+// ─── Module 1: Marketing Dashboard ───────────────────────────────────────────
+model MarketingSpend {
+  id          String   @id @default(cuid())
+  month       DateTime
+  channel     String   // google_ads|meta|linkedin|events|content|email|seo|other
+  amount_aed  Decimal  @default(0) @db.Decimal(12,2)
+  notes       String?
+  created_at  DateTime @default(now())
+  @@unique([month, channel])
+}
+
+// ─── Module 12: Affiliate System ─────────────────────────────────────────────
+model AffiliatePayment {
+  id             String   @id @default(cuid())
+  broker_id      String
+  broker         Broker   @relation(fields:[broker_id], references:[id])
+  amount_aed     Decimal  @default(0) @db.Decimal(12,2)
+  deals_count    Int      @default(0)
+  period_start   DateTime
+  period_end     DateTime
+  status         String   @default("pending")  // pending|processing|paid|cancelled
+  payment_method String?  // bank_transfer|wise|paypal|crypto
+  payment_ref    String?
+  notes          String?
+  paid_at        DateTime?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+}
+
+// ─── Billing: Quotes & Invoices ───────────────────────────────────────────────
+
+model Quote {
+  id             String    @id @default(cuid())
+  dealer_id      String
+  broker_id      String?
+  vehicle_id     String?
+  buyer_name     String
+  buyer_email    String?
+  buyer_phone    String?
+  buyer_country  String?
+  quote_number   String    @unique
+  status         String    @default("draft") // draft|sent|accepted|rejected|expired|converted
+  currency       String    @default("AED")
+  subtotal_aed   Decimal   @db.Decimal(12,2)
+  discount_pct   Int       @default(0)
+  discount_aed   Decimal   @default(0) @db.Decimal(12,2)
+  tax_pct        Int       @default(5)
+  tax_aed        Decimal   @default(0) @db.Decimal(12,2)
+  total_aed      Decimal   @db.Decimal(12,2)
+  valid_until    DateTime?
+  notes          String?
+  terms          String?
+  sent_at        DateTime?
+  accepted_at    DateTime?
+  rejected_at    DateTime?
+  converted_at   DateTime?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  dealer  Dealer          @relation(fields: [dealer_id], references: [id], onDelete: Cascade)
+  vehicle Vehicle?        @relation(fields: [vehicle_id], references: [id], onDelete: SetNull)
+  items   QuoteLineItem[]
+  invoice Invoice?
+
+  @@map("quotes")
+}
+
+model QuoteLineItem {
+  id          String  @id @default(cuid())
+  quote_id    String
+  description String
+  quantity    Int     @default(1)
+  unit_price  Decimal @db.Decimal(12,2)
+  total       Decimal @db.Decimal(12,2)
+
+  quote Quote @relation(fields: [quote_id], references: [id], onDelete: Cascade)
+
+  @@map("quote_line_items")
+}
+
+model Invoice {
+  id             String    @id @default(cuid())
+  dealer_id      String
+  broker_id      String?
+  vehicle_id     String?
+  quote_id       String?   @unique
+  buyer_name     String
+  buyer_email    String?
+  buyer_phone    String?
+  buyer_country  String?
+  invoice_number String    @unique
+  status         String    @default("draft") // draft|sent|paid|overdue|cancelled
+  currency       String    @default("AED")
+  subtotal_aed   Decimal   @db.Decimal(12,2)
+  discount_aed   Decimal   @default(0) @db.Decimal(12,2)
+  tax_aed        Decimal   @default(0) @db.Decimal(12,2)
+  total_aed      Decimal   @db.Decimal(12,2)
+  due_date       DateTime?
+  paid_at        DateTime?
+  sent_at        DateTime?
+  notes          String?
+  terms          String?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  dealer  Dealer            @relation(fields: [dealer_id], references: [id], onDelete: Cascade)
+  vehicle Vehicle?          @relation(fields: [vehicle_id], references: [id], onDelete: SetNull)
+  quote   Quote?            @relation(fields: [quote_id], references: [id])
+  items   InvoiceLineItem[]
+
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoice_id  String
+  description String
+  quantity    Int     @default(1)
+  unit_price  Decimal @db.Decimal(12,2)
+  total       Decimal @db.Decimal(12,2)
+
+  invoice Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@map("invoice_line_items")
+}
+
+// ─── AI Twin Dealer ──────────────────────────────────────────────────────────
+// The AI Twin is a virtual Sales Director / Business Consultant per dealer.
+// One brief per dealer per day, generated nightly (or lazily on first request).
+
+model AiTwinBrief {
+  id            String   @id @default(cuid())
+  dealer_id     String
+  brief_date    String            // YYYY-MM-DD (dealer-local day bucket)
+  health_score  Int      @default(0)
+  content       Json     @default("{}")  // structured brief: greeting, highlights, plan, forecast…
+  model_used    String?
+  generated_by  String   @default("auto") // auto | manual | fallback
+  created_at    DateTime @default(now())
+
+  @@unique([dealer_id, brief_date])
+  @@index([dealer_id, created_at])
+  @@map("ai_twin_briefs")
+}
+
+model AiTwinConfig {
+  id                 String   @id @default("global")
+  enabled            Boolean  @default(true)
+  model_alias        String   @default("sonnet")   // sonnet | haiku | opus
+  brief_template     String?                        // extra instructions injected in the brief prompt
+  chat_template      String?                        // extra instructions injected in the copilot prompt
+  rules              Json     @default("{}")        // recommendation engine thresholds
+  nightly_hour_utc   Int      @default(3)
+  updated_by         String?
+  updated_at         DateTime @updatedAt
+  created_at         DateTime @default(now())
+
+  @@map("ai_twin_config")
+}
+
+model AiTwinLog {
+  id         String   @id @default(cuid())
+  dealer_id  String?
+  action     String            // brief_generated | chat | marketing | config_updated | error
+  meta       Json     @default("{}")
+  created_at DateTime @default(now())
+
+  @@index([dealer_id, created_at])
+  @@map("ai_twin_logs")
+}
+
+// ─── Automotive Market Data Lake ─────────────────────────────────────────────
+// Proprietary historical market intelligence. APPEND-ONLY by design: every
+// sync ENRICHES history (new observations / snapshots), it never overwrites.
+// MarketCompetitorData above remains the "latest benchmark" cache; the lake
+// below is the permanent record that grows in value with every sync.
+
+model MarketListing {
+  // The permanent internal Market Intelligence ID (mi_id = this row's id).
+  id                 String    @id @default(cuid())
+  source             String                     // dubizzle | dubicars | <future providers>
+  fingerprint        String                     // matching key: source+make+model+year+trim+dealer (normalized)
+  make               String
+  model              String
+  year               Int
+  trim               String?
+  body_type          String?
+  dealer_name        String?                    // seller as observed on the source platform
+  emirate            String?                    // location / free zone as observed
+  country            String    @default("AE")
+  source_url         String?
+  first_seen_at      DateTime  @default(now())
+  last_seen_at       DateTime  @default(now())
+  status             String    @default("active")   // active | delisted (delisted ≈ sold/removed)
+  delisted_at        DateTime?
+  first_price_aed    Decimal   @db.Decimal(12,2)
+  current_price_aed  Decimal   @db.Decimal(12,2)
+  lowest_price_aed   Decimal   @db.Decimal(12,2)
+  highest_price_aed  Decimal   @db.Decimal(12,2)
+  price_changes      Int       @default(0)
+  times_seen         Int       @default(1)
+  lifetime_days      Int       @default(0)          // last_seen - first_seen (≈ selling time once delisted)
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+
+  observations       MarketObservation[]
+
+  @@unique([source, fingerprint])
+  @@index([make, model, year])
+  @@index([status, last_seen_at])
+  @@index([dealer_name])
+  @@map("market_listings")
+}
+
+model MarketObservation {
+  // Append-only: one row per time a listing is observed during a sync.
+  id           String   @id @default(cuid())
+  listing_id   String
+  run_id       String?
+  observed_at  DateTime @default(now())
+  price_aed    Decimal  @db.Decimal(12,2)
+  status       String   @default("active")
+  dealer_name  String?
+  source       String
+  raw          Json     @default("{}")
+
+  listing      MarketListing @relation(fields: [listing_id], references: [id], onDelete: Cascade)
+
+  @@index([listing_id, observed_at])
+  @@index([observed_at])
+  @@map("market_observations")
+}
+
+model MarketSnapshot {
+  // Append-only aggregate benchmark per (make, model, year, source) per sync.
+  // The historical time-series behind every trend, forecast and score.
+  id               String   @id @default(cuid())
+  run_id           String?
+  captured_at      DateTime @default(now())
+  source           String
+  make             String
+  model            String
+  year             Int
+  avg_price_aed    Decimal  @db.Decimal(12,2)
+  min_price_aed    Decimal? @db.Decimal(12,2)
+  max_price_aed    Decimal? @db.Decimal(12,2)
+  listing_count    Int      @default(0)
+  avg_days_listed  Int?
+  demand_level     String?
+  trend_pct        Decimal? @db.Decimal(5,2)
+  confidence_pct   Int      @default(70)
+
+  @@index([make, model, year, captured_at])
+  @@index([captured_at])
+  @@map("market_snapshots")
+}
+
+model MarketSyncJob {
+  // Lightweight in-database queue for background Market Sync jobs.
+  id            String    @id @default(cuid())
+  type          String    @default("full_sync")   // full_sync | recalculate
+  status        String    @default("queued")      // queued | running | success | partial | failed
+  triggered_by  String?
+  progress_pct  Int       @default(0)
+  progress_note String?
+  payload       Json      @default("{}")
+  result        Json      @default("{}")
+  error_detail  String?
+  queued_at     DateTime  @default(now())
+  started_at    DateTime?
+  completed_at  DateTime?
+
+  @@index([status, queued_at])
+  @@map("market_sync_jobs")
+}
+
+model MarketLakeConfig {
+  id                    String   @id @default("global")
+  providers             Json     @default("[{\"key\":\"dubizzle\",\"label\":\"Dubizzle UAE\",\"enabled\":true},{\"key\":\"dubicars\",\"label\":\"DubiCars\",\"enabled\":true}]")
+  retention_days        Int      @default(1825)     // 5 years of observations by default
+  delist_after_days     Int      @default(21)       // active listing not seen for N days => delisted
+  match_price_tolerance Int      @default(7)        // % price tolerance for intelligent listing matching
+  sample_listings_per_model Int  @default(6)        // representative listings ingested per model per sync
+  auto_recalculate      Boolean  @default(true)     // refresh AI indicators after each sync
+  updated_by            String?
+  updated_at            DateTime @updatedAt
+  created_at            DateTime @default(now())
+
+  @@map("market_lake_config")
+}
+
+model DealerProspect {
+  // Known dealers across GCC free zones — the outbound prospection list.
+  // Emails/phones start empty unless genuinely known: they are meant to be
+  // completed by the admin (or CSV import) before inviting. status tracks
+  // the funnel: prospect → invited → registered.
+  id           String    @id @default(cuid())
+  company_name String
+  country      String    @default("AE")   // AE | SA | QA | KW | OM | BH
+  emirate      String?                    // city / emirate
+  free_zone    String?                    // DUCAMZ, JAFZA, SAIF Zone, ...
+  email        String?
+  phone        String?
+  website      String?
+  specialties  String?                    // e.g. "4x4 export, Japanese brands"
+  status       String    @default("prospect")  // prospect | invited | registered | declined
+  invited_at   DateTime?
+  invite_count Int       @default(0)
+  notes        String?
+  source       String    @default("seed_gcc_v1")
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+
+  @@unique([company_name, free_zone])
+  @@index([status])
+  @@index([country, free_zone])
+  @@map("dealer_prospects")
+}
+
+model AiRecommendationStatus {
+  // Persists which AI Twin recommendations a dealer has marked as done.
+  // Recommendations themselves are computed fresh every time (not stored) —
+  // rec_key is a stable deterministic id built from {type}:{entity_id} so a
+  // "done" mark survives across brief regenerations as long as the same
+  // underlying opportunity (same vehicle/lead/etc) is being recommended.
+  id           String   @id @default(cuid())
+  dealer_id    String
+  rec_key      String
+  completed_at DateTime @default(now())
+
+  dealer Dealer @relation(fields: [dealer_id], references: [id], onDelete: Cascade)
+
+  @@unique([dealer_id, rec_key])
+  @@index([dealer_id])
+  @@map("ai_recommendation_status")
+}
+
+// ─── Global Trade Intelligence Engine ────────────────────────────────────────
+// Worldwide automotive-trade data lake: GCC → world export flows, routes,
+// costs, regulations, and the AI layer (forecasts, opportunities, scores)
+// computed on top. Seeded with a deterministic public-statistics-derived
+// baseline (source='gti_seed_v1'); every additional sync enriches it.
+
+model TradeDataSource {
+  id           String    @id @default(cuid())
+  name         String    @unique
+  kind         String    // customs | port | shipping | marketplace | open_data
+  url          String?
+  status       String    @default("configured") // configured | active | error | disabled
+  last_sync_at DateTime?
+  notes        String?
+  created_at   DateTime  @default(now())
+
+  @@map("trade_data_sources")
+}
+
+model TradeSyncRun {
+  id            String    @id @default(cuid())
+  trigger       String    @default("manual") // manual | scheduled | startup_seed
+  status        String    @default("running") // running | completed | failed
+  flows_added   Int       @default(0)
+  forecasts_built Int     @default(0)
+  opportunities_built Int @default(0)
+  log           String?
+  started_at    DateTime  @default(now())
+  finished_at   DateTime?
+
+  @@map("trade_sync_runs")
+}
+
+model TradeFlow {
+  // One historised export-flow aggregate: GCC origin → destination country,
+  // per make/model/period. The raw material for every forecast.
+  id               String   @id @default(cuid())
+  period           DateTime // month bucket
+  origin_country   String   // AE | SA | QA | OM | BH | KW
+  dest_country     String   // ISO-2
+  dest_region      String?  // Africa | CIS | South Asia | ...
+  make             String?
+  model            String?
+  category         String?  // SUV | Sedan | Pickup | Luxury
+  units            Int      @default(0)
+  avg_price_aed    Int?
+  source           String   @default("gti_seed_v1")
+  created_at       DateTime @default(now())
+
+  @@index([origin_country, dest_country, period])
+  @@index([make, model])
+  @@map("trade_flows")
+}
+
+model TradeRoute {
+  id                 String  @id @default(cuid())
+  origin_port        String  // e.g. Jebel Ali
+  origin_country     String
+  dest_port          String
+  dest_country       String
+  shipping_lines     String[] // carriers serving the route
+  transit_days_avg   Int
+  frequency_per_month Int    @default(4)
+  cost_per_unit_aed  Int     // RoRo per-vehicle average
+  insurance_pct      Float   @default(1.5)
+  source             String  @default("gti_seed_v1")
+  updated_at         DateTime @updatedAt
+
+  @@unique([origin_port, dest_port])
+  @@index([dest_country])
+  @@map("trade_routes")
+}
+
+model CountryTradeProfile {
+  id                 String  @id @default(cuid())
+  country            String  @unique // ISO-2
+  country_name       String
+  region             String
+  import_duty_pct    Float   @default(0)
+  vat_pct            Float   @default(0)
+  other_fees_aed     Int     @default(0)
+  max_vehicle_age    Int?    // import age restriction in years, null = none
+  drive_side         String  @default("LHD") // LHD | RHD
+  regulations        String? // human-readable summary
+  restrictions       String?
+  demand_categories  String[] // hot categories
+  market_growth_pct  Float   @default(0)  // YoY trend
+  risk_score         Int     @default(50) // 0 (safe) - 100 (risky)
+  updated_at         DateTime @updatedAt
+
+  @@map("country_trade_profiles")
+}
+
+model TradeForecast {
+  id             String   @id @default(cuid())
+  run_id         String?
+  dest_country   String
+  make           String?
+  model          String?
+  horizon_months Int      // 3 | 6 | 12
+  demand_index   Int      // 0-100
+  price_trend_pct Float
+  logistics_cost_trend_pct Float
+  transit_trend_days Float @default(0)
+  confidence_pct Int      @default(70)
+  computed_at    DateTime @default(now())
+
+  @@index([dest_country, horizon_months])
+  @@map("trade_forecasts")
+}
+
+model TradeOpportunity {
+  id               String   @id @default(cuid())
+  run_id           String?
+  dest_country     String
+  make             String?
+  model            String?
+  category         String?
+  kind             String   @default("export") // export | arbitrage | emerging_market
+  headline         String
+  rationale        String?
+  profitability_score Int   @default(50)
+  risk_score       Int      @default(50)
+  competition_score Int     @default(50)
+  est_margin_pct   Float?
+  active           Boolean  @default(true)
+  computed_at      DateTime @default(now())
+
+  @@index([active, profitability_score])
+  @@map("trade_opportunities")
+}
+
+model DealerGtiAccess {
+  // Admin-controlled premium gate for the dealer-facing GTI tab.
+  id          String   @id @default(cuid())
+  dealer_id   String   @unique
+  enabled     Boolean  @default(true)
+  granted_by  String?  // admin user id
+  note        String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@map("dealer_gti_access")
+}
+
