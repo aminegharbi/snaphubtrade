@@ -4,3 +4,7 @@ config/*.json
 !config/README.md
 .env
 .env
+# Environment files
+.env
+.env.*
+!.env.example
