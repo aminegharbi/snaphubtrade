@@ -435,6 +435,28 @@ button, a[role="button"], [role="button"] { min-height: var(--tap); }
   .da-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
 }
 
+/* Form + fixed-width sidebar layouts (broker/dealer signup, etc.) — the
+   sidebar column stacks BELOW the form instead of forcing a fixed px width
+   that can't fit a phone screen. */
+@media (max-width: 900px) {
+  .da-form-sidebar-layout { grid-template-columns: 1fr !important; gap: 24px !important; }
+}
+
+/* Any inline URL/code snippet that must never force horizontal overflow */
+.da-break-anywhere { overflow-wrap: anywhere; word-break: break-word; }
+
+/* Footer: brand column + 4 link columns → stacks to 1 col (brand) + 2x2 link
+   grid on mobile instead of forcing 5 columns (~650px minimum) into a 375px
+   viewport. */
+@media (max-width: 768px) {
+  .da-footer-grid {
+    grid-template-columns: 1fr !important;
+    gap: 28px !important;
+  }
+  .da-footer-grid > div:first-child { min-width: 0 !important; }
+  .da-footer-links { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 24px !important; }
+}
+
 /* Input touch-friendly */
 input, select, textarea {
   font-size: 16px !important; /* prevent iOS zoom */

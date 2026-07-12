@@ -353,7 +353,7 @@ export default function VehiclePage({ params }: { params: { id: string } }) {
           <span style={{ color: '#374151', fontWeight: 500 }}>{vehicle.year} {vehicle.model}</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
+        <div className="da-form-sidebar-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
 
           {/* ── Left column ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

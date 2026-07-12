@@ -57,7 +57,7 @@ export function Footer() {
       <div style={{ height: 4, background: UAE_STRIPE }} />
 
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: '40px 20px 32px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'auto repeat(4, 1fr)', gap: 32, marginBottom: 36 }}>
+        <div className="da-footer-grid" style={{ display: 'grid', gridTemplateColumns: 'auto repeat(4, 1fr)', gap: 32, marginBottom: 36 }}>
 
           {/* Brand */}
           <div style={{ minWidth: 200 }}>
@@ -93,24 +93,28 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Columns */}
-          {COLS.map(col => (
-            <div key={col.title}>
-              <p style={{ fontSize: '0.72rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
-                {col.title}
-              </p>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
-                {col.links.map(l => (
-                  <li key={l.href + l.label}>
-                    <Link href={l.href}
-                      style={{ fontSize: '0.82rem', color: '#6B7280', textDecoration: 'none' }}>
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {/* Columns — display:contents on desktop so these still flow as
+              direct items of the outer 5-col grid; becomes its own 2-col
+              grid on mobile via .da-footer-links in the media query above. */}
+          <div className="da-footer-links" style={{ display: 'contents' }}>
+            {COLS.map(col => (
+              <div key={col.title}>
+                <p style={{ fontSize: '0.72rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
+                  {col.title}
+                </p>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {col.links.map(l => (
+                    <li key={l.href + l.label}>
+                      <Link href={l.href}
+                        style={{ fontSize: '0.82rem', color: '#6B7280', textDecoration: 'none' }}>
+                        {l.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Bottom bar */}

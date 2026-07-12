@@ -150,7 +150,7 @@ export default function BrokerPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 24 }}>
           {[
             { label: 'Your referral link', value: `snaphubtrade.com/join?ref=${affiliateCode}` },
             { label: 'Dealer signup link', value: `snaphubtrade.com/register-dealer?ref=${affiliateCode}` },
@@ -208,7 +208,7 @@ export default function BrokerPage() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 20px', display: 'grid', gridTemplateColumns: '1fr 360px', gap: 32 }}>
+      <div className="da-form-sidebar-layout" style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 20px', display: 'grid', gridTemplateColumns: '1fr 360px', gap: 32 }}>
 
         {/* Left: Registration form */}
         <div>

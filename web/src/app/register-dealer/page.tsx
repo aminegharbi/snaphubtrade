@@ -113,9 +113,9 @@ export default function RegisterDealerPage() {
         <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(16,185,129,0.15)' }}>
           <Check size={28} className="text-emerald-400" />
         </div>
-        <h2 className="text-xl font-bold text-white mb-2">{t('register.success.title')}</h2>
-        <p className="text-white/40 text-sm mb-6">Your dealer profile is ready.</p>
-        <Link href="/login" className="px-6 py-2.5 rounded-xl text-sm font-semibold text-black"
+        <h2 className="text-xl font-bold text-gray-900 mb-2">{t('register.success.title')}</h2>
+        <p className="text-gray-500 text-sm mb-6">Your dealer profile is ready.</p>
+        <Link href="/login" className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white"
           style={{ background: '#C1272D' }}>
           Sign in
         </Link>
@@ -129,12 +129,12 @@ export default function RegisterDealerPage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-6">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: '#C1272D' }}>
-              <Car size={18} className="text-black" />
+              <Car size={18} className="text-white" />
             </div>
             <span className="font-bold text-xl">SnapHub<span style={{ color: '#C1272D' }}>Trade.com</span></span>
           </div>
-          <h1 className="text-2xl font-bold text-white mb-1">{t('register.title')}</h1>
-          <p className="text-sm text-white/40">Create your dealer account — free</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">{t('register.title')}</h1>
+          <p className="text-sm text-gray-500">Create your dealer account — free</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -145,7 +145,7 @@ export default function RegisterDealerPage() {
             { key: 'password', label: t('register.field.password'), placeholder: 'Min 8 characters', type: 'password' },
           ].map(f => (
             <div key={f.key}>
-              <label className="text-xs text-white/40 mb-1.5 block uppercase tracking-wider">{f.label}</label>
+              <label className="text-xs text-gray-500 mb-1.5 block uppercase tracking-wider">{f.label}</label>
               <input type={f.type} value={(form as any)[f.key]} onChange={e => sf(f.key, e.target.value)}
                 placeholder={f.placeholder} required className="input-white w-full" />
               {fieldErrors[f.key] && (
@@ -155,7 +155,7 @@ export default function RegisterDealerPage() {
           ))}
 
           <div>
-            <label className="text-xs text-white/40 mb-1.5 block uppercase tracking-wider">{t('register.field.country')}</label>
+            <label className="text-xs text-gray-500 mb-1.5 block uppercase tracking-wider">{t('register.field.country')}</label>
             <select value={countryId} onChange={e => setCountryId(e.target.value)} className="input-white w-full">
               {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -163,7 +163,7 @@ export default function RegisterDealerPage() {
 
           {freeZones.length > 0 && (
             <div>
-              <label className="text-xs text-white/40 mb-1.5 block uppercase tracking-wider">{t('register.field.free_zone')}</label>
+              <label className="text-xs text-gray-500 mb-1.5 block uppercase tracking-wider">{t('register.field.free_zone')}</label>
               <select value={freeZoneId} onChange={e => setFreeZoneId(e.target.value)} className="input-white w-full">
                 <option value="">{t('register.field.free_zone.none')}</option>
                 {freeZones.map(z => <option key={z.id} value={z.id}>{z.name}{z.city ? ` — ${z.city}` : ''}</option>)}
@@ -172,16 +172,16 @@ export default function RegisterDealerPage() {
           )}
 
           <div>
-            <label className="text-xs text-white/40 mb-1.5 block uppercase tracking-wider">{t('register.field.city')}</label>
+            <label className="text-xs text-gray-500 mb-1.5 block uppercase tracking-wider">{t('register.field.city')}</label>
             <input type="text" value={form.city} onChange={e => sf('city', e.target.value)}
               placeholder="Dubai, Riyadh, Doha..." className="input-white w-full" />
           </div>
 
           <div>
-            <label className="text-xs text-white/40 mb-1.5 block uppercase tracking-wider">{t('register.field.referral')}</label>
+            <label className="text-xs text-gray-500 mb-1.5 block uppercase tracking-wider">{t('register.field.referral')}</label>
             <input type="text" value={referralCode} onChange={e => setReferralCode(e.target.value.toUpperCase())}
               placeholder={t('register.field.referral.placeholder')} className="input-white w-full" style={{ fontFamily:'monospace' }} />
-            <p className="text-xs text-white/30 mt-1">{t('register.field.referral.hint')}</p>
+            <p className="text-xs text-gray-400 mt-1">{t('register.field.referral.hint')}</p>
           </div>
 
           {error && (
@@ -189,15 +189,15 @@ export default function RegisterDealerPage() {
           )}
 
           <button type="submit" disabled={loading}
-            className="w-full py-3 rounded-xl font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
             style={{ background: '#C1272D' }}>
             {loading && <Loader2 size={16} className="animate-spin" />}
             {loading ? t('register.button.creating') : t('register.button.submit')}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-white/40">
-          {t('register.already_have_account')} <Link href="/login" className="text-white/70 hover:text-white">{t('register.sign_in')}</Link>
+        <div className="mt-6 text-center text-sm text-gray-500">
+          {t('register.already_have_account')} <Link href="/login" className="text-gray-700 hover:text-gray-900 font-semibold">{t('register.sign_in')}</Link>
         </div>
       </div>
     </div>

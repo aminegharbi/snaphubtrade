@@ -225,9 +225,19 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu — a real mobile menu panel: fixed under the sticky
+          header, its own bounded height with independent vertical scroll,
+          so a long item list never pushes page content or gets clipped
+          off-screen on short devices. */}
       {mobileOpen && (
-        <div style={{ background: 'white', borderTop: '1px solid #F3F4F6', padding: '12px 16px 16px' }}>
+        <div style={{
+          position: 'fixed', top: 61, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.25)', zIndex: 49,
+        }} onClick={() => setMobileOpen(false)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: 'white', borderTop: '1px solid #F3F4F6', padding: '12px 16px 16px',
+            maxHeight: 'calc(100dvh - 61px)', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+          }}>
           <div className="sm:hidden" style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
             <LanguageSelector compact theme="light" />
             <CurrencySelector compact theme="light" />
@@ -271,6 +281,7 @@ export function Navbar() {
                 {l.label}
               </Link>
             ))}
+          </div>
           </div>
         </div>
       )}
