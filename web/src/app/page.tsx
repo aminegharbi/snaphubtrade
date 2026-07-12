@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Shield, Zap, Globe, ArrowRight, Star, TrendingUp, Car, RefreshCw } from 'lucide-react';
+import { Search, Shield, Zap, Globe, ArrowRight, Star, TrendingUp, Car, RefreshCw, CheckCircle2 } from 'lucide-react';
 import type { Vehicle } from '@/lib/api';
 import { VehicleCard, VehicleCardSkeleton } from '@/components/vehicle/VehicleCard';
 import { TrendingMarket } from '@/components/home/TrendingMarket';
@@ -75,6 +75,79 @@ export default function HomePage() {
                 {q}
               </Link>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Two-headline showcase: add a car in 10s, and AI Twin — the two
+          things that should sell the platform in one glance. Built to hold
+          up on the narrowest phones: no fixed widths, no min-width traps,
+          every row that could get tight has flexWrap, and the whole section
+          collapses cleanly from 2 columns to 1 with no horizontal scroll. */}
+      <section style={{ background: 'white', padding: '52px 0', borderBottom: '1px solid #F3F4F6' }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+
+            {/* Card 1 — 10-second vehicle add */}
+            <div style={{ background: 'linear-gradient(135deg, #FFF1F2, #FFFFFF)', border: '1px solid #FECACA', borderRadius: 20, padding: '28px 26px', display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ width: 46, height: 46, borderRadius: 13, background: '#C1272D', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Zap size={22} color="white" />
+                </div>
+                <span style={{ fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', color: '#C1272D', textTransform: 'uppercase', background: '#FFE4E6', padding: '4px 10px', borderRadius: 20 }}>
+                  ⏱ 10 seconds
+                </span>
+              </div>
+              <h3 style={{ fontSize: 'clamp(1.15rem, 4vw, 1.4rem)', fontWeight: 800, color: '#111827', margin: 0, lineHeight: 1.25 }}>
+                Add a vehicle to your stock in 10 seconds
+              </h3>
+              <p style={{ fontSize: '0.9rem', color: '#6B7280', lineHeight: 1.65, margin: 0 }}>
+                Snap a photo or scan the plate — TwinOS auto-fills make, model, year, specs and a competitive price instantly. No manual data entry, no waiting.
+              </p>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '4px 0 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {['Instant AI specs auto-fill', 'Smart Scan from a plate photo', 'Competitive price suggested automatically'].map(line => (
+                  <li key={line} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '0.84rem', color: '#374151' }}>
+                    <CheckCircle2 size={15} color="#C1272D" style={{ flexShrink: 0, marginTop: 2 }} />
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link href="/register-dealer"
+                style={{ marginTop: 8, alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 20px', background: '#C1272D', color: 'white', borderRadius: 12, fontWeight: 700, fontSize: '0.86rem', textDecoration: 'none' }}>
+                Try it free <ArrowRight size={15} />
+              </Link>
+            </div>
+
+            {/* Card 2 — AI Twin */}
+            <div style={{ background: 'linear-gradient(135deg, #1E1B4B, #312E81)', borderRadius: 20, padding: '28px 26px', display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ width: 46, height: 46, borderRadius: 13, background: 'rgba(139,92,246,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: '1.3rem' }}>🤖</span>
+                </div>
+                <span style={{ fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', color: '#C4B5FD', textTransform: 'uppercase', background: 'rgba(139,92,246,0.18)', padding: '4px 10px', borderRadius: 20 }}>
+                  AI Twin
+                </span>
+              </div>
+              <h3 style={{ fontSize: 'clamp(1.15rem, 4vw, 1.4rem)', fontWeight: 800, color: 'white', margin: 0, lineHeight: 1.25 }}>
+                A sales director that never sleeps
+              </h3>
+              <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.65, margin: 0 }}>
+                Every morning, AI Twin briefs you on pricing opportunities, hot leads, and export demand — then keeps working your stock all day long.
+              </p>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '4px 0 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {['Daily brief with prioritized actions', 'Real-time pricing & lead recommendations', 'Ask it anything about your stock, 24/7'].map(line => (
+                  <li key={line} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '0.84rem', color: 'rgba(255,255,255,0.85)' }}>
+                    <CheckCircle2 size={15} color="#A78BFA" style={{ flexShrink: 0, marginTop: 2 }} />
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link href="/register-dealer"
+                style={{ marginTop: 8, alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 20px', background: 'white', color: '#1E1B4B', borderRadius: 12, fontWeight: 700, fontSize: '0.86rem', textDecoration: 'none' }}>
+                Meet AI Twin <ArrowRight size={15} />
+              </Link>
+            </div>
+
           </div>
         </div>
       </section>
