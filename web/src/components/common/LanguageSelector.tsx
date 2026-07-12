@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useLocale } from '@/contexts/LocaleContext';
 
-export function LanguageSelector({ compact = false, theme = 'dark' }: { compact?: boolean; theme?: 'dark' | 'light' }) {
+export function LanguageSelector({ compact = false, theme = 'dark', anchor = 'right' }: { compact?: boolean; theme?: 'dark' | 'light'; anchor?: 'left' | 'right' }) {
   const { locale, setLocale, supported } = useLocale();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -43,7 +43,7 @@ export function LanguageSelector({ compact = false, theme = 'dark' }: { compact?
 
       {open && (
         <div style={{
-          position: 'absolute', top: '110%', insetInlineEnd: 0, zIndex: 200,
+          position: 'absolute', top: '110%', [anchor === 'left' ? 'insetInlineStart' : 'insetInlineEnd']: 0, zIndex: 200,
           background: isLight ? 'white' : '#16161f',
           border: isLight ? '1px solid #E5E7EB' : '1px solid rgba(255,255,255,0.1)',
           borderRadius: 12, minWidth: 160, padding: 6,

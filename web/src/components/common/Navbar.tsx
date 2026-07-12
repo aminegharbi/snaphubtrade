@@ -236,11 +236,12 @@ export function Navbar() {
         }} onClick={() => setMobileOpen(false)}>
           <div onClick={e => e.stopPropagation()} style={{
             background: 'white', borderTop: '1px solid #F3F4F6', padding: '12px 16px 16px',
-            maxHeight: 'calc(100dvh - 61px)', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+            maxHeight: 'calc(100dvh - 61px)', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch',
+            width: '100%', boxSizing: 'border-box',
           }}>
-          <div className="sm:hidden" style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-            <LanguageSelector compact theme="light" />
-            <CurrencySelector compact theme="light" />
+          <div className="sm:hidden" style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+            <LanguageSelector compact theme="light" anchor="left" />
+            <CurrencySelector compact theme="light" anchor="left" />
           </div>
           <form onSubmit={onSearch} style={{ marginBottom: 10 }}>
             <div style={{ position: 'relative' }}>
