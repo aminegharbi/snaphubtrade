@@ -117,8 +117,8 @@ export function Navbar() {
           </span>
         </Link>
 
-        {/* Search bar */}
-        <form onSubmit={onSearch} style={{ flex: 1, maxWidth: 380 }} className="hidden sm:block">
+        {/* Search bar — desktop only; the mobile drawer has its own search field */}
+        <form onSubmit={onSearch} style={{ flex: 1, maxWidth: 380 }} className="hidden lg:block">
           <div style={{ position: 'relative' }}>
             <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', pointerEvents: 'none' }} />
             <input
@@ -194,15 +194,19 @@ export function Navbar() {
 
         {/* Right actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
+          {/* Everything below is desktop-only (≥1024px) — on mobile/tablet the
+              only things visible in the top bar are the logo, the sign-in/
+              profile button, and the hamburger. Search, nav links, quick
+              actions, and language/currency all live inside the hamburger
+              drawer instead, so the top bar can never overflow a phone. */}
+
           {/* Dealer-only quick actions */}
           {isDealer && (
-            <>
-              <Link href="/dealer/scan"
-                className="hidden md:flex"
-                style={{ alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, fontSize: '0.8rem', fontWeight: 600, color: '#C1272D', textDecoration: 'none', background: '#FFF1F2', border: '1px solid #FECACA' }}>
-                <Zap size={13} /> Scan
-              </Link>
-            </>
+            <Link href="/dealer/scan"
+              className="hidden lg:flex"
+              style={{ alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, fontSize: '0.8rem', fontWeight: 600, color: '#C1272D', textDecoration: 'none', background: '#FFF1F2', border: '1px solid #FECACA' }}>
+              <Zap size={13} /> Scan
+            </Link>
           )}
           {/* Admin-only quick link */}
           {isAdmin && (
@@ -213,13 +217,13 @@ export function Navbar() {
             </Link>
           )}
 
-          <div className="hidden sm:block"><LanguageSelector compact theme="light" /></div>
-          <div className="hidden sm:block"><CurrencySelector compact theme="light" /></div>
+          <div className="hidden lg:block"><LanguageSelector compact theme="light" /></div>
+          <div className="hidden lg:block"><CurrencySelector compact theme="light" /></div>
 
           <IdentityMenu />
 
           <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden"
-            style={{ padding: 8, borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', color: '#374151' }}>
+            style={{ padding: 8, borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', color: '#374151', flexShrink: 0 }}>
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
@@ -239,7 +243,7 @@ export function Navbar() {
             maxHeight: 'calc(100dvh - 61px)', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch',
             width: '100%', boxSizing: 'border-box',
           }}>
-          <div className="sm:hidden" style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+          <div className="lg:hidden" style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
             <LanguageSelector compact theme="light" anchor="left" />
             <CurrencySelector compact theme="light" anchor="left" />
           </div>
