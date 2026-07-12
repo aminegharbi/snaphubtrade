@@ -10,7 +10,12 @@
    (wide data tables, image carousels) stays scrollable via its own
    .da-table-wrap / overflow-x wrapper, which is unaffected by this rule
    since it applies to <html>/<body>, not their descendants. */
-html, body { overflow-x: hidden; max-width: 100vw; }
+/* NOTE: we deliberately do NOT set overflow-x:hidden on html/body as a
+   blanket fix — on iOS Safari that can break position:fixed descendants
+   (exactly what the mobile menu drawer and modals use), silently clipping
+   or mispositioning them. Every real horizontal-overflow bug found during
+   the responsive audit was fixed at its source instead (sidebars, grids,
+   footer, signup forms) — see the .da-* utility classes below. */
 
 @keyframes aiTwinPulse {
   0% { transform: scale(1); opacity: 0.6; }
