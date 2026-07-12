@@ -317,7 +317,7 @@ export function AiTwinPanel({ dealerId, onNavigate }: { dealerId: string; onNavi
               <>
                 <p style={{ color: 'white', fontSize: '0.95rem', fontWeight: 600, lineHeight: 1.5, margin: '2px 0 12px' }}>{content.greeting}</p>
                 {expanded && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
                     <div>
                       <p style={{ margin: '0 0 8px', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', color: '#A78BFA', textTransform: 'uppercase' }}>Today's biggest opportunities</p>
                       {(content.highlights || []).map((h: string, i: number) => (
@@ -345,12 +345,12 @@ export function AiTwinPanel({ dealerId, onNavigate }: { dealerId: string; onNavi
 
           {/* Scores + actions */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: 16 }}>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
               <ScoreRing value={scores.business_health ?? brief?.health_score ?? 0} label="Business Health" />
               <ScoreRing value={scores.inventory_health ?? 0} size={58} label="Inventory" />
               <ScoreRing value={scores.sales_performance ?? 0} size={58} label="Sales" />
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
               <button onClick={() => setChatOpen(true)} style={{ padding: '9px 16px', borderRadius: 11, border: 'none', cursor: 'pointer', background: 'white', color: '#1E1B4B', fontWeight: 700, fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <MessageCircle size={14} /> Ask AI Twin
               </button>
@@ -393,7 +393,7 @@ export function AiTwinPanel({ dealerId, onNavigate }: { dealerId: string; onNavi
           </div>
 
           {/* Insight grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
             {/* AI recommendations */}
             <div style={{ gridColumn: '1 / -1' }}>
               <InsightCard icon={Zap} color="#7C3AED" title="AI Recommendations — proactive actions" count={cc.recommendations?.length || 0}>
@@ -407,7 +407,7 @@ export function AiTwinPanel({ dealerId, onNavigate }: { dealerId: string; onNavi
                     </span>
                   </div>
                 )}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
                   {(cc.recommendations || []).map((r: any, i: number) => (
                     <div key={r.key || i}
                       onClick={() => onNavigate?.(r.action?.kind, r.action)}

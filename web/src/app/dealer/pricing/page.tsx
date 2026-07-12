@@ -259,7 +259,7 @@ export default function PricingPage() {
                 : `${alerts.length} vehicles analysed · Add AI benchmarks via Admin → AI Market Analysis`}
             </p>
           </div>
-          <div style={{ display:'flex', gap:8 }}>
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
             {potentialGain > 0 && (
               <div style={{ background:'#D1FAE5', border:'1px solid #A7F3D0', borderRadius:10, padding:'8px 14px', fontSize:'0.82rem', color:'#065F46', fontWeight:600 }}>
                 ↑ +{formatPrice(potentialGain)} potential if repriced
@@ -310,7 +310,7 @@ export default function PricingPage() {
         )}
 
         {/* KPI cards */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12 }}>
+        <div className="da-kpi-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12 }}>
           {[
             { label:'Vehicles analysed', value:alerts.length, icon:Car,           color:'#374151' },
             { label:'Underpriced',       value:underpricedCount, icon:ArrowUpRight, color:'#065F46', sub:`+${formatPrice(potentialGain)} potential` },
@@ -329,7 +329,7 @@ export default function PricingPage() {
         </div>
 
         {/* Filter tabs */}
-        <div style={{ display:'flex', gap:6 }}>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
           {[
             { v:'all',        l:`All (${alerts.length})` },
             { v:'underpriced',l:`↑ Underpriced (${underpricedCount})` },

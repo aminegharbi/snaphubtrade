@@ -562,7 +562,7 @@ export default function BrokerDashboardPage() {
 
         {/* ── ACTIVITY TAB ── */}
         {mainTab === 'activity' && (
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 340px', gap:24 }}>
+          <div className="da-form-sidebar-layout" style={{ display:'grid', gridTemplateColumns:'1fr 340px', gap:24 }}>
             <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
               {/* Sub-tabs */}
               <div style={{ display:'flex', gap:6 }}>

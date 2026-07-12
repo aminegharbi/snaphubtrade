@@ -214,7 +214,7 @@ export function BillingPanel({ dealerId, onToast }: { dealerId:string; onToast:(
 
       {/* KPI row */}
       {stats && (
-        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))',gap:12}}>
           {[
             {label:'Total quotes',   value:stats.quotes?.total??0,        sub:`${stats.quotes?.this_month??0} this month`,  color:'#1E40AF', icon:FileText},
             {label:'Conversion rate',value:`${convRate}%`,              sub:`${stats.quotes?.converted??0} converted`, color:convRate>=50?'#007A3D':convRate>=25?'#92400E':'#C1272D', icon:Target},
