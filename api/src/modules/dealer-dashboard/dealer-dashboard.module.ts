@@ -8,6 +8,14 @@ import { Roles } from '../../shared/auth/roles.decorator';
 export class DealerDashboardService {
   constructor(private prisma: PrismaService) {}
 
+  private activePromotionWhere(now = new Date()) {
+    return {
+      active: true,
+      starts_at: { lte: now },
+      OR: [{ ends_at: null }, { ends_at: { gte: now } }],
+    };
+  }
+
   // ── Rapid stock operations ─────────────────────────────────────────────────
 
   async getDealerInventory(dealerId: string, filters: {
@@ -48,7 +56,7 @@ export class DealerDashboardService {
         include: {
           vehicle_images: { where: { is_primary: true }, take: 1 },
           price_history: { orderBy: { changed_at: 'desc' }, take: 3 },
-          promotions: { where: { active: true }, take: 1 },
+          promotions: { where: this.activePromotionWhere(), take: 1 },
           _count: { select: { leads: true } },
         },
       }),

@@ -22,6 +22,7 @@ interface Vehicle {
   export_eligible: boolean; view_count: number; favorite_count: number;
   stock_quantity?: number; sold_units?: number;
   created_at: string; vehicle_images?: { cdn_url: string; is_primary: boolean }[];
+  promotions?: { id: string; original_price: number; promo_price: number; label?: string; ends_at?: string }[];
 }
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
@@ -100,9 +101,17 @@ function Donut({ data, labelKey, valueKey }: { data:any[]; labelKey:string; valu
 // ─── Quick Edit Modal ─────────────────────────────────────────────────────────
 function QuickEditModal({ vehicle: v, onClose, onSave }: { vehicle: Vehicle; onClose:()=>void; onSave:(v:Vehicle)=>void }) {
   const formatPrice = usePriceFormatter();
+  const activePromotion = v.promotions?.[0];
+  const initialPct = activePromotion
+    ? Math.max(1, Math.round((1 - Number(activePromotion.promo_price) / Math.max(1, Number(activePromotion.original_price))) * 100))
+    : 10;
   const [data, setData] = useState({ ...v });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [promoPct, setPromoPct] = useState(initialPct);
+  const [promoDays, setPromoDays] = useState(7);
+  const [promoSaving, setPromoSaving] = useState(false);
+  const [promoErr, setPromoErr] = useState('');
 
   const save = async () => {
     setSaving(true);
@@ -115,6 +124,32 @@ function QuickEditModal({ vehicle: v, onClose, onSave }: { vehicle: Vehicle; onC
       onSave({ ...data, ...updated }); onClose();
     } catch (e:any) { setErr(e.message || 'Save failed'); }
     finally { setSaving(false); }
+  };
+
+  const applyPromotion = async () => {
+    setPromoSaving(true); setPromoErr('');
+    try {
+      const promo = await api.post<any>(`/vehicles/${v.id}/promotion`, {
+        discount_pct: Number(promoPct),
+        duration_days: Number(promoDays),
+        label: `Remise -${Number(promoPct)}%`,
+      });
+      onSave({ ...data, promotions: [promo] } as Vehicle);
+      onClose();
+    } catch (e:any) {
+      setPromoErr(e.message || 'Promotion failed');
+    } finally { setPromoSaving(false); }
+  };
+
+  const disablePromotion = async () => {
+    setPromoSaving(true); setPromoErr('');
+    try {
+      await api.delete(`/vehicles/${v.id}/promotion`);
+      onSave({ ...data, promotions: [] } as Vehicle);
+      onClose();
+    } catch (e:any) {
+      setPromoErr(e.message || 'Unable to remove promotion');
+    } finally { setPromoSaving(false); }
   };
 
   return (
@@ -166,6 +201,39 @@ function QuickEditModal({ vehicle: v, onClose, onSave }: { vehicle: Vehicle; onC
               style={{ width:42, height:24, borderRadius:12, border:'none', cursor:'pointer', position:'relative', background:data.export_eligible?'#C1272D':'#D1D5DB', transition:'background 0.2s' }}>
               <span style={{ position:'absolute', top:3, width:18, height:18, borderRadius:'50%', background:'white', boxShadow:'0 1px 3px rgba(0,0,0,0.2)', transition:'left 0.2s', left:data.export_eligible?21:3 }} />
             </button>
+          </div>
+          <div style={{ border:'1px solid #FECACA', borderRadius:10, background:'#FFF7F7', padding:'12px 14px' }}>
+            <p style={{ fontSize:'0.8rem', fontWeight:700, color:'#C1272D', margin:'0 0 8px' }}>Remise limitée</p>
+            {activePromotion && (
+              <p style={{ fontSize:'0.75rem', color:'#6B7280', margin:'0 0 8px' }}>
+                Active: <strong style={{ color:'#111827' }}>{formatPrice(Number(activePromotion.promo_price), { fromCurrency: v.currency })}</strong>
+                {' '}au lieu de {formatPrice(Number(activePromotion.original_price), { fromCurrency: v.currency })}
+                {activePromotion.ends_at ? ` · expire ${new Date(activePromotion.ends_at).toLocaleDateString('fr-FR')}` : ''}
+              </p>
+            )}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr auto', gap:8, alignItems:'end' }}>
+              <div>
+                <label style={{ fontSize:'0.72rem', color:'#6B7280', fontWeight:600, display:'block', marginBottom:4 }}>Remise (%)</label>
+                <input type="number" min={1} max={90} value={promoPct} onChange={e=>setPromoPct(Number(e.target.value)||0)}
+                  style={{ width:'100%', padding:'8px 10px', border:'1.5px solid #E5E7EB', borderRadius:8, fontSize:'0.82rem', outline:'none' }} />
+              </div>
+              <div>
+                <label style={{ fontSize:'0.72rem', color:'#6B7280', fontWeight:600, display:'block', marginBottom:4 }}>Durée (jours)</label>
+                <input type="number" min={1} max={365} value={promoDays} onChange={e=>setPromoDays(Number(e.target.value)||0)}
+                  style={{ width:'100%', padding:'8px 10px', border:'1.5px solid #E5E7EB', borderRadius:8, fontSize:'0.82rem', outline:'none' }} />
+              </div>
+              <button onClick={applyPromotion} disabled={promoSaving}
+                style={{ padding:'8px 12px', border:'none', borderRadius:8, background:'#C1272D', color:'white', cursor:'pointer', fontSize:'0.78rem', fontWeight:700, whiteSpace:'nowrap' }}>
+                {promoSaving ? '...' : 'Appliquer'}
+              </button>
+            </div>
+            {activePromotion && (
+              <button onClick={disablePromotion} disabled={promoSaving}
+                style={{ marginTop:8, padding:'7px 10px', border:'1px solid #FECACA', borderRadius:8, background:'white', color:'#B91C1C', cursor:'pointer', fontSize:'0.75rem', fontWeight:700 }}>
+                Retirer la remise
+              </button>
+            )}
+            {promoErr && <p style={{ margin:'8px 0 0', fontSize:'0.75rem', color:'#B91C1C' }}>{promoErr}</p>}
           </div>
         </div>
         <div style={{ padding:'14px 20px', borderTop:'1px solid #F3F4F6', display:'flex', gap:10 }}>
@@ -1009,6 +1077,10 @@ export default function DealerDashboard() {
                     {filtered.map(v=>{
                       const days = daysAgo(v.created_at);
                       const img = v.vehicle_images?.find(i=>i.is_primary)?.cdn_url || v.vehicle_images?.[0]?.cdn_url;
+                      const promo = v.promotions?.[0];
+                      const hasPromo = !!promo;
+                      const promoPrice = hasPromo ? Number(promo!.promo_price) : Number(v.price_aed);
+                      const promoPct = hasPromo ? Math.max(1, Math.round((1 - (Number(promo!.promo_price) / Math.max(1, Number(promo!.original_price)))) * 100)) : 0;
                       return (
                         <tr key={v.id} style={{ borderTop:'1px solid #F9FAFB' }}>
                           <td style={{ padding:'10px 12px' }}>
@@ -1027,7 +1099,13 @@ export default function DealerDashboard() {
                             </div>
                           </td>
                           <td style={{ padding:'10px 14px' }}>
-                            <p style={{ fontWeight:700, color:'#C1272D', margin:0, fontSize:'0.9rem' }}>{formatPrice(Number(v.price_aed))}</p>
+                            <p style={{ fontWeight:700, color:'#C1272D', margin:0, fontSize:'0.9rem' }}>{formatPrice(promoPrice)}</p>
+                            {hasPromo && (
+                              <p style={{ fontSize:'0.72rem', color:'#6B7280', margin:0 }}>
+                                <span style={{ textDecoration:'line-through' }}>{formatPrice(Number(promo!.original_price))}</span>
+                                <span style={{ marginLeft:6, color:'#B91C1C', fontWeight:700 }}>-{promoPct}%</span>
+                              </p>
+                            )}
                             {v.export_eligible && <p style={{ fontSize:'0.72rem', color:'#1E40AF', margin:0 }}>✈ Export</p>}
                           </td>
                           <td style={{ padding:'10px 14px' }}>

@@ -6,6 +6,14 @@ import { Public } from '../../shared/auth/public.decorator';
 export class SearchService {
   constructor(private prisma: PrismaService) {}
 
+  private activePromotionWhere(now = new Date()) {
+    return {
+      active: true,
+      starts_at: { lte: now },
+      OR: [{ ends_at: null }, { ends_at: { gte: now } }],
+    };
+  }
+
   async search(q: any) {
     const {
       query, make, model, year_min, year_max, price_min, price_max,
@@ -59,7 +67,7 @@ export class SearchService {
               verified: true, rating: true, whatsapp: true,
             },
           },
-          promotions: { where: { active: true }, take: 1 },
+          promotions: { where: this.activePromotionWhere(), take: 1 },
           valuations: {
             where: { is_stale: false, expires_at: { gt: new Date() } },
             orderBy: { computed_at: 'desc' as const },

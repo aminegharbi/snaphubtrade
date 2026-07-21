@@ -17,7 +17,7 @@ const PROFILE_CFG: Record<string, { label: string; color: string; bg: string; ic
   buyer:  { label: 'Member', color: '#6B7280', bg: '#F9FAFB', icon: User, dashboardHref: '/' },
 };
 
-function IdentityMenu() {
+function IdentityMenu({ compact = false }: { compact?: boolean }) {
   const { profile, signOut } = useSession();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -43,20 +43,20 @@ function IdentityMenu() {
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button onClick={() => setOpen(o => !o)}
-        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 12px 5px 6px', borderRadius: 11, border: `1.5px solid ${cfg.color}30`, background: cfg.bg, cursor: 'pointer' }}>
+        style={{ display: 'flex', alignItems: 'center', gap: compact ? 4 : 7, padding: compact ? '5px 8px 5px 5px' : '5px 12px 5px 6px', borderRadius: 11, border: `1.5px solid ${cfg.color}30`, background: cfg.bg, cursor: 'pointer', minWidth: compact ? 0 : undefined }}>
         <span style={{ position: 'relative', width: 26, height: 26, borderRadius: '50%', background: cfg.color, color: 'white', fontWeight: 800, fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           {profile.avatar_label}
           <span style={{ position: 'absolute', bottom: -1, right: -1, width: 8, height: 8, borderRadius: '50%', background: '#22C55E', border: '1.5px solid white' }} />
         </span>
-        <span className="hidden sm:flex" style={{ flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.15 }}>
+        {!compact && <span className="hidden sm:flex" style={{ flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.15 }}>
           <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#111827', maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.display_name}</span>
           <span style={{ fontSize: '0.65rem', fontWeight: 600, color: cfg.color }}>{cfg.label}</span>
-        </span>
+        </span>}
         <ChevronDown size={12} style={{ color: cfg.color, flexShrink: 0 }} />
       </button>
 
       {open && (
-        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, width: 220, background: 'white', border: '1px solid #E5E7EB', borderRadius: 14, boxShadow: '0 12px 32px rgba(0,0,0,0.14)', overflow: 'hidden', zIndex: 100 }}>
+        <div style={{ position: compact ? 'fixed' : 'absolute', top: compact ? 57 : '100%', right: compact ? 12 : 0, left: compact ? 12 : 'auto', marginTop: compact ? 0 : 8, width: compact ? 'auto' : 220, background: 'white', border: '1px solid #E5E7EB', borderRadius: 14, boxShadow: '0 12px 32px rgba(0,0,0,0.14)', overflow: 'hidden', zIndex: 100 }}>
           <div style={{ padding: '12px 14px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon size={14} style={{ color: cfg.color }} />
             <div>
@@ -88,8 +88,23 @@ export function Navbar() {
   const { isEnabled } = useFeatureFlags();
   const { profile } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   const [q, setQ] = useState('');
   const router = useRouter();
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const sync = () => setIsDesktop(mq.matches);
+    sync();
+    setMounted(true);
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
+  useEffect(() => {
+    if (isDesktop) setMobileOpen(false);
+  }, [isDesktop]);
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,25 +115,34 @@ export function Navbar() {
   const isBroker = profile.profile_type === 'broker';
   const isAdmin = profile.profile_type === 'admin';
 
+  const showDesktop = mounted && isDesktop;
+  const showMobile = mounted && !isDesktop;
+
   return (
     <header style={{ background: 'white', borderBottom: '1px solid #E5E7EB', position: 'sticky', top: 0, zIndex: 50, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
       {/* UAE flag stripe */}
       <div style={{ height: 3, background: UAE_STRIPE }} />
 
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 20px', display: 'flex', alignItems: 'center', height: 58, gap: 12 }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: showMobile ? '0 12px' : '0 20px', display: 'flex', alignItems: 'center', height: showMobile ? 54 : 58, gap: showMobile ? 8 : 12 }}>
 
         {/* Logo */}
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', flexShrink: 0, marginRight: 8 }}>
           <div style={{ width: 34, height: 34, borderRadius: 9, background: '#C1272D', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(193,39,45,0.35)' }}>
             <Car size={17} color="white" strokeWidth={2.5} />
           </div>
-          <span style={{ fontWeight: 800, fontSize: '1.05rem', color: '#111827', letterSpacing: '-0.02em' }}>
-            SnapHub<span style={{ color: '#C1272D' }}>Trade.com</span>
-          </span>
+          {showDesktop ? (
+            <span style={{ fontWeight: 800, fontSize: '1.05rem', color: '#111827', letterSpacing: '-0.02em' }}>
+              SnapHub<span style={{ color: '#C1272D' }}>Trade.com</span>
+            </span>
+          ) : (
+            <span style={{ fontWeight: 800, fontSize: '0.94rem', color: '#111827', letterSpacing: '-0.01em' }}>
+              SnapHub<span style={{ color: '#C1272D' }}>Trade</span>
+            </span>
+          )}
         </Link>
 
         {/* Search bar — desktop only; the mobile drawer has its own search field */}
-        <form onSubmit={onSearch} style={{ flex: 1, maxWidth: 380 }} className="hidden lg:block">
+        {showDesktop && <form onSubmit={onSearch} style={{ flex: 1, maxWidth: 380 }}>
           <div style={{ position: 'relative' }}>
             <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', pointerEvents: 'none' }} />
             <input
@@ -129,10 +153,10 @@ export function Navbar() {
               onBlur={e => (e.target.style.borderColor = '#E5E7EB')}
             />
           </div>
-        </form>
+        </form>}
 
         {/* Desktop nav */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 2, marginLeft: 4 }} className="hidden lg:flex">
+        {showDesktop && <nav style={{ display: 'flex', alignItems: 'center', gap: 2, marginLeft: 4 }}>
           {[
             { href: '/pricing',     label: 'Pricing' },
             { href: '/marketplace', label: 'Marketplace' },
@@ -150,14 +174,12 @@ export function Navbar() {
           {/* "Join" only shown to guests — logged-in users already have a profile */}
           {profile.profile_type === 'guest' && (
             <Link href="/join"
-              className="hidden lg:flex"
               style={{ alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, fontSize: '0.875rem', fontWeight: 500, color: '#374151', textDecoration: 'none' }}>
               Join
             </Link>
           )}
           {isEnabled('broker_programme') && !isBroker && (
             <Link href="/broker"
-              className="hidden lg:flex"
               style={{ alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, fontSize: '0.8rem', fontWeight: 600, color: '#007A3D', textDecoration: 'none', background: '#F0FDF4', border: '1px solid #BBF7D0' }}>
               💼 Brokers
             </Link>
@@ -165,7 +187,6 @@ export function Navbar() {
           {/* Broker: quick link to their reservations */}
           {isBroker && (
             <Link href="/broker/dashboard?tab=reservations"
-              className="hidden lg:flex"
               style={{ alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, fontSize: '0.8rem', fontWeight: 600, color: '#007A3D', textDecoration: 'none', background: '#F0FDF4', border: '1px solid #BBF7D0' }}>
               🔖 My reservations
             </Link>
@@ -190,7 +211,7 @@ export function Navbar() {
               ))}
             </div>
           </div>
-        </nav>
+        </nav>}
 
         {/* Right actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
@@ -201,31 +222,29 @@ export function Navbar() {
               drawer instead, so the top bar can never overflow a phone. */}
 
           {/* Dealer-only quick actions */}
-          {isDealer && (
+          {showDesktop && isDealer && (
             <Link href="/dealer/scan"
-              className="hidden lg:flex"
               style={{ alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, fontSize: '0.8rem', fontWeight: 600, color: '#C1272D', textDecoration: 'none', background: '#FFF1F2', border: '1px solid #FECACA' }}>
               <Zap size={13} /> Scan
             </Link>
           )}
           {/* Admin-only quick link */}
-          {isAdmin && (
+          {showDesktop && isAdmin && (
             <Link href="/admin"
-              className="hidden lg:flex"
               style={{ alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, fontSize: '0.875rem', fontWeight: 500, color: '#374151', textDecoration: 'none' }}>
               <Shield size={14} /> Admin
             </Link>
           )}
 
-          <div className="hidden lg:block"><LanguageSelector compact theme="light" /></div>
-          <div className="hidden lg:block"><CurrencySelector compact theme="light" /></div>
+          {showDesktop && <div><LanguageSelector compact theme="light" /></div>}
+          {showDesktop && <div><CurrencySelector compact theme="light" /></div>}
 
-          <IdentityMenu />
+          <IdentityMenu compact={showMobile} />
 
-          <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden"
+          {showMobile && <button onClick={() => setMobileOpen(!mobileOpen)}
             style={{ padding: 8, borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', color: '#374151', flexShrink: 0 }}>
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -233,17 +252,17 @@ export function Navbar() {
           header, its own bounded height with independent vertical scroll,
           so a long item list never pushes page content or gets clipped
           off-screen on short devices. */}
-      {mobileOpen && (
+      {showMobile && mobileOpen && (
         <div style={{
-          position: 'fixed', top: 61, left: 0, right: 0, bottom: 0,
+          position: 'fixed', top: 57, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.25)', zIndex: 49,
         }} onClick={() => setMobileOpen(false)}>
           <div onClick={e => e.stopPropagation()} style={{
             background: 'white', borderTop: '1px solid #F3F4F6', padding: '12px 16px 16px',
-            maxHeight: 'calc(100dvh - 61px)', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch',
+            maxHeight: 'calc(100dvh - 57px)', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch',
             width: '100%', boxSizing: 'border-box',
           }}>
-          <div className="lg:hidden" style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
             <LanguageSelector compact theme="light" anchor="left" />
             <CurrencySelector compact theme="light" anchor="left" />
           </div>

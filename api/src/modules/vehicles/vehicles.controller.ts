@@ -90,6 +90,20 @@ export class VehiclesController {
   }
 
   @Roles('dealer', 'admin')
+  @Post(':id/promotion')
+  async upsertPromotion(@Param('id') id: string, @Body() body: any, @Request() req: any) {
+    await this.assertOwnership(id, req);
+    return this.vehiclesService.upsertPromotion(id, body);
+  }
+
+  @Roles('dealer', 'admin')
+  @Delete(':id/promotion')
+  async removePromotion(@Param('id') id: string, @Request() req: any) {
+    await this.assertOwnership(id, req);
+    return this.vehiclesService.removePromotion(id);
+  }
+
+  @Roles('dealer', 'admin')
   @Post('upload-images')
   @UseInterceptors(FilesInterceptor('files', 10, {
     storage: memoryStorage(),

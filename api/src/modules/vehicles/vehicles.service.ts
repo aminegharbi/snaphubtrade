@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -7,6 +7,14 @@ import * as crypto from 'crypto';
 @Injectable()
 export class VehiclesService {
   constructor(private prisma: PrismaService) {}
+
+  private activePromotionWhere(now = new Date()) {
+    return {
+      active: true,
+      starts_at: { lte: now },
+      OR: [{ ends_at: null }, { ends_at: { gte: now } }],
+    };
+  }
 
   async findAll(query: any) {
     const {
@@ -50,7 +58,7 @@ export class VehiclesService {
         include: {
           vehicle_images: { where: { is_primary: true }, take: 1 },
           dealer: { select: { id: true, company_name: true, slug: true, verified: true, rating: true, whatsapp: true } },
-          promotions: { where: { active: true }, take: 1 },
+          promotions: { where: this.activePromotionWhere(), take: 1 },
         },
       }),
       this.prisma.vehicle.count({ where }),
@@ -68,7 +76,7 @@ export class VehiclesService {
         include: {
           vehicle_images: { where: { is_primary: true }, take: 1 },
           dealer: { select: { company_name: true, slug: true, verified: true, rating: true } },
-          promotions: { where: { active: true }, take: 1 },
+          promotions: { where: this.activePromotionWhere(), take: 1 },
         },
       });
     } catch {
@@ -99,7 +107,7 @@ export class VehiclesService {
           },
         },
         price_history: { orderBy: { changed_at: 'desc' }, take: 10 },
-        promotions: { where: { active: true }, take: 1 },
+        promotions: { where: this.activePromotionWhere(), take: 1 },
       },
     });
     if (!vehicle) throw new NotFoundException('Vehicle not found');
@@ -235,5 +243,81 @@ export class VehiclesService {
   async bulkCreate(vehicles: any[], dealerId: string) {
     const results = await Promise.all(vehicles.map((v) => this.create(v, dealerId)));
     return { created: results.length, items: results };
+  }
+
+  async upsertPromotion(vehicleId: string, data: any) {
+    const vehicle = await this.prisma.vehicle.findUnique({ where: { id: vehicleId }, select: { id: true, dealer_id: true, price_aed: true } });
+    if (!vehicle) throw new NotFoundException('Vehicle not found');
+
+    const originalPrice = Number(vehicle.price_aed);
+    const discountPct = data.discount_pct !== undefined && data.discount_pct !== null && data.discount_pct !== ''
+      ? Number(data.discount_pct)
+      : null;
+    const explicitPromoPrice = data.promo_price !== undefined && data.promo_price !== null && data.promo_price !== ''
+      ? Number(data.promo_price)
+      : null;
+
+    if (discountPct === null && explicitPromoPrice === null) {
+      throw new BadRequestException('Either discount_pct or promo_price is required');
+    }
+
+    if (discountPct !== null && (Number.isNaN(discountPct) || discountPct <= 0 || discountPct >= 100)) {
+      throw new BadRequestException('discount_pct must be between 0 and 100');
+    }
+
+    let promoPrice = explicitPromoPrice;
+    if (promoPrice === null && discountPct !== null) {
+      promoPrice = Math.round(originalPrice * (1 - (discountPct / 100)) * 100) / 100;
+    }
+    if (promoPrice === null || Number.isNaN(promoPrice) || promoPrice <= 0 || promoPrice >= originalPrice) {
+      throw new BadRequestException('promo_price must be greater than 0 and lower than current vehicle price');
+    }
+
+    const startsAt = data.starts_at ? new Date(data.starts_at) : new Date();
+    if (Number.isNaN(startsAt.getTime())) throw new BadRequestException('Invalid starts_at');
+
+    let endsAt: Date | null = null;
+    if (data.ends_at) {
+      endsAt = new Date(data.ends_at);
+      if (Number.isNaN(endsAt.getTime())) throw new BadRequestException('Invalid ends_at');
+    } else if (data.duration_days !== undefined && data.duration_days !== null && data.duration_days !== '') {
+      const days = Number(data.duration_days);
+      if (Number.isNaN(days) || days <= 0 || days > 365) {
+        throw new BadRequestException('duration_days must be between 1 and 365');
+      }
+      endsAt = new Date(startsAt.getTime() + days * 86400000);
+    }
+
+    if (endsAt && endsAt <= startsAt) throw new BadRequestException('ends_at must be after starts_at');
+
+    await this.prisma.promotion.updateMany({
+      where: { vehicle_id: vehicleId, active: true },
+      data: { active: false, ends_at: new Date() },
+    });
+
+    const promo = await this.prisma.promotion.create({
+      data: {
+        vehicle_id: vehicleId,
+        dealer_id: vehicle.dealer_id,
+        original_price: originalPrice,
+        promo_price: promoPrice,
+        label: data.label || (discountPct ? `-${Math.round(discountPct)}%` : 'Limited offer'),
+        starts_at: startsAt,
+        ends_at: endsAt,
+        active: true,
+      },
+    });
+
+    return promo;
+  }
+
+  async removePromotion(vehicleId: string) {
+    const vehicle = await this.prisma.vehicle.findUnique({ where: { id: vehicleId }, select: { id: true } });
+    if (!vehicle) throw new NotFoundException('Vehicle not found');
+    const result = await this.prisma.promotion.updateMany({
+      where: { vehicle_id: vehicleId, active: true },
+      data: { active: false, ends_at: new Date() },
+    });
+    return { disabled: result.count };
   }
 }

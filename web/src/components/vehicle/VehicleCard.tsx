@@ -70,10 +70,15 @@ export function VehicleCard({ vehicle: v }: { vehicle: Vehicle }) {
 
   // Deal badge
   const deal = val?.deal_rating ? DEAL_CFG[val.deal_rating] : null;
+  const promo = v.promotions?.[0];
 
   // Price vs market
   const mktEst  = val ? Number(val.estimated_value_aed) : 0;
   const myPrice = Number(v.price_aed);
+  const displayPrice = promo ? Number(promo.promo_price) : myPrice;
+  const promoPct = promo
+    ? Math.max(1, Math.round((1 - Number(promo.promo_price) / Math.max(1, Number(promo.original_price))) * 100))
+    : 0;
   const diffPct = mktEst > 0 ? ((myPrice - mktEst) / mktEst * 100) : 0;
   const isUnder = diffPct < -2;
 
@@ -81,7 +86,7 @@ export function VehicleCard({ vehicle: v }: { vehicle: Vehicle }) {
   const TrendIcon = val?.price_trend_direction === 'rising' ? TrendingUp : val?.price_trend_direction === 'falling' ? TrendingDown : null;
   const trendColor = val?.price_trend_direction === 'rising' ? '#007A3D' : '#C1272D';
 
-  const whatsappMsg = encodeURIComponent(`Hi, I'm interested in the ${v.year} ${v.make} ${v.model} at ${formatPrice(myPrice, { fromCurrency: v.currency })} on SnapHubTrade.com.`);
+  const whatsappMsg = encodeURIComponent(`Hi, I'm interested in the ${v.year} ${v.make} ${v.model} at ${formatPrice(displayPrice, { fromCurrency: v.currency })} on SnapHubTrade.com.`);
 
   // Broker-only: reserve straight from the marketplace card, no need to open
   // the vehicle detail page first. Mirrors ReservationWidget's booking logic.
@@ -128,9 +133,16 @@ export function VehicleCard({ vehicle: v }: { vehicle: Vehicle }) {
           </div>
         )}
 
+        {promo && (
+          <div style={{ position: 'absolute', top: deal ? 38 : 8, left: 8, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 20, background: 'rgba(185,28,28,0.92)', backdropFilter: 'blur(8px)' }}>
+            <span style={{ fontSize: '0.68rem' }}>🏷️</span>
+            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: 'white' }}>-{promoPct}%</span>
+          </div>
+        )}
+
         {/* Reserved overlay — diagonal-free, sits top-right when no deal badge competes for top-left */}
         {(v as any).status === 'reserved' && (
-          <div style={{ position: 'absolute', top: deal ? 38 : 8, left: 8, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 20, background: 'rgba(30,64,175,0.92)', backdropFilter: 'blur(8px)' }}>
+          <div style={{ position: 'absolute', top: deal || promo ? 68 : 8, left: 8, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 20, background: 'rgba(30,64,175,0.92)', backdropFilter: 'blur(8px)' }}>
             <span style={{ fontSize: '0.68rem' }}>🔖</span>
             <span style={{ fontSize: '0.68rem', fontWeight: 800, color: 'white' }}>Reserved</span>
           </div>
@@ -159,12 +171,13 @@ export function VehicleCard({ vehicle: v }: { vehicle: Vehicle }) {
 
         {/* Price overlay */}
         <div style={{ position: 'absolute', bottom: 8, left: 8, padding: '4px 10px', borderRadius: 10, background: 'linear-gradient(135deg, rgba(193,39,45,0.95), rgba(155,28,34,0.95))', backdropFilter: 'blur(4px)' }}>
-          <span style={{ fontSize: '0.8rem', fontWeight: 900, color: 'white' }}>{formatPrice(myPrice, { fromCurrency: v.currency })}</span>
+          <span style={{ fontSize: '0.8rem', fontWeight: 900, color: 'white' }}>{formatPrice(displayPrice, { fromCurrency: v.currency })}</span>
+          {promo && <span style={{ marginLeft: 6, fontSize: '0.67rem', color: 'rgba(255,255,255,0.85)', textDecoration: 'line-through' }}>{formatPrice(myPrice, { fromCurrency: v.currency })}</span>}
         </div>
 
         {/* Stock quantity — stacks below deal/reserved badges if present */}
         {(v as any).stock_quantity > 1 && (
-          <div style={{ position: 'absolute', top: (deal ? 30 : 0) + ((v as any).status === 'reserved' ? 30 : 0) + 8, left: 8, padding: '2px 7px', borderRadius: 8, background: 'rgba(91,33,182,0.85)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ position: 'absolute', top: (deal ? 30 : 0) + (promo ? 30 : 0) + ((v as any).status === 'reserved' ? 30 : 0) + 8, left: 8, padding: '2px 7px', borderRadius: 8, background: 'rgba(91,33,182,0.85)', backdropFilter: 'blur(4px)' }}>
             <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'white' }}>×{(v as any).stock_quantity}</span>
           </div>
         )}

@@ -27,6 +27,7 @@ interface Vehicle {
   export_eligible: boolean; status: string; stock_quantity?: number;
   view_count: number; created_at: string;
   vehicle_images: Array<{ cdn_url: string; is_primary: boolean; position: number }>;
+  promotions?: Array<{ id: string; original_price: number; promo_price: number; label?: string; ends_at?: string }>;
   dealer: { id: string; company_name: string; slug: string; verified: boolean; rating: number; review_count: number; phone?: string; whatsapp?: string; email?: string };
   price_history?: Array<{ price_aed: number; changed_at: string }>;
 }
@@ -326,8 +327,13 @@ export default function VehiclePage({ params }: { params: { id: string } }) {
   );
 
   const dealer = vehicle.dealer;
+  const promo = vehicle.promotions?.[0];
+  const listedPrice = promo ? Number(promo.promo_price) : Number(vehicle.price_aed);
+  const promoPct = promo
+    ? Math.max(1, Math.round((1 - Number(promo.promo_price) / Math.max(1, Number(promo.original_price))) * 100))
+    : 0;
   const images = vehicle.vehicle_images || [];
-  const whatsappMsg = encodeURIComponent(`Hi, I'm interested in the ${vehicle.year} ${vehicle.make} ${vehicle.model}${vehicle.trim ? ' ' + vehicle.trim : ''} listed at ${formatPrice(Number(vehicle.price_aed), { fromCurrency: vehicle.currency })} on SnapHubTrade.com.`);
+  const whatsappMsg = encodeURIComponent(`Hi, I'm interested in the ${vehicle.year} ${vehicle.make} ${vehicle.model}${vehicle.trim ? ' ' + vehicle.trim : ''} listed at ${formatPrice(listedPrice, { fromCurrency: vehicle.currency })} on SnapHubTrade.com.`);
   const specs = [
     { label: 'Year', value: vehicle.year, icon: Calendar },
     { label: 'Mileage', value: vehicle.mileage_km === 0 ? 'Brand new / 0 km' : `${Number(vehicle.mileage_km).toLocaleString()} km`, icon: Gauge },
@@ -374,12 +380,23 @@ export default function VehiclePage({ params }: { params: { id: string } }) {
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <Price aed={Number(vehicle.price_aed)} from={vehicle.currency} style={{ fontWeight: 900, fontSize: '1.8rem', color: '#C1272D', lineHeight: 1 }} />
-                  {vehicle.price_suggested_aed && Number(vehicle.price_suggested_aed) > Number(vehicle.price_aed) && (
+                  <Price aed={listedPrice} from={vehicle.currency} style={{ fontWeight: 900, fontSize: '1.8rem', color: '#C1272D', lineHeight: 1 }} />
+                  {promo ? (
+                    <div style={{ display:'flex', justifyContent:'flex-end', alignItems:'center', gap:8 }}>
+                      <Price aed={Number(promo.original_price)} from={vehicle.currency} style={{ fontSize: '0.82rem', color: '#9CA3AF', textDecoration: 'line-through' }} />
+                      <span style={{ fontSize:'0.72rem', fontWeight:800, color:'#B91C1C', background:'#FEE2E2', padding:'2px 8px', borderRadius:20 }}>-{promoPct}%</span>
+                    </div>
+                  ) : vehicle.price_suggested_aed && Number(vehicle.price_suggested_aed) > Number(vehicle.price_aed) && (
                     <Price aed={Number(vehicle.price_suggested_aed)} from={vehicle.currency} style={{ fontSize: '0.82rem', color: '#9CA3AF', textDecoration: 'line-through' }} />
                   )}
                 </div>
               </div>
+
+              {promo && (
+                <div style={{ marginTop:10, display:'inline-flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:20, background:'#FFF1F2', color:'#B91C1C', fontSize:'0.75rem', fontWeight:700 }}>
+                  🏷️ Offre limitée{promo.ends_at ? ` · jusqu'au ${new Date(promo.ends_at).toLocaleDateString('fr-FR')}` : ''}
+                </div>
+              )}
 
               {/* Specs grid */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, padding: '16px 0', borderTop: '1px solid #F3F4F6' }}>
@@ -411,7 +428,7 @@ export default function VehiclePage({ params }: { params: { id: string } }) {
                 <span style={{ width: 28, height: 28, borderRadius: 7, background: '#EDE9FE', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem' }}>🤖</span>
                 AI Market Valuation
               </h3>
-              <ValuationWidget vehicleId={vehicle.id} listedPrice={Number(vehicle.price_aed)} />
+              <ValuationWidget vehicleId={vehicle.id} listedPrice={listedPrice} />
             </div>
 
             <InvestmentScoreCard vehicleId={vehicle.id} />
@@ -422,7 +439,8 @@ export default function VehiclePage({ params }: { params: { id: string } }) {
             {/* CTA card */}
             <div style={{ background: 'white', borderRadius: 16, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
               <div style={{ padding: '18px 20px', borderBottom: '1px solid #F3F4F6' }}>
-                <Price aed={Number(vehicle.price_aed)} from={vehicle.currency} style={{ fontWeight: 900, fontSize: '1.6rem', color: '#C1272D', marginBottom: 4 }} />
+                <Price aed={listedPrice} from={vehicle.currency} style={{ fontWeight: 900, fontSize: '1.6rem', color: '#C1272D', marginBottom: 4 }} />
+                {promo && <Price aed={Number(promo.original_price)} from={vehicle.currency} style={{ fontSize: '0.78rem', color: '#9CA3AF', textDecoration: 'line-through', marginBottom: 4 }} />}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <p style={{ color: '#9CA3AF', margin: 0, fontSize: '0.8rem' }}>Listed price</p>
                   <span style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: 20, fontWeight: 700, textTransform: 'capitalize',
